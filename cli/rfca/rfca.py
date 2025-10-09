@@ -36,7 +36,7 @@ sweep_parser.add_argument(
 )
 
 # Create the 'cancel' subcommand
-cancel_parser = subparsers.add_parser("cancel", help="Cancels a running sweep")
+#cancel_parser = subparsers.add_parser("cancel", help="Cancels a running sweep")
 
 # Creates the 'list' subcomand
 list_parser = subparsers.add_parser("list", help="Lists previous sweeps")
