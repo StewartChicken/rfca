@@ -13,8 +13,8 @@ BAUD = 9600
 
 
 # Connect to Teensy
-ser = serial.Serial(PORT, BAUD, timeout=1)
-time.sleep(2)
+#ser = serial.Serial(PORT, BAUD, timeout=1)
+#time.sleep(2)
 
 parser = ArgumentParser(description="Main parser")
 subparsers = parser.add_subparsers(dest="command", required=True)
@@ -36,7 +36,7 @@ sweep_parser.add_argument(
 )
 
 # Create the 'cancel' subcommand
-cancel_parser = subparsers.add_parser("cancel", help="Cancels a running sweep")
+#cancel_parser = subparsers.add_parser("cancel", help="Cancels a running sweep")
 
 # Creates the 'list' subcomand
 list_parser = subparsers.add_parser("list", help="Lists previous sweeps")
