@@ -6,26 +6,31 @@ Done last week:
   - Can send JSON file containing config data from rfca.py 
   - Can parse JSON file for command type on Teensy
 
+  - SD card is initialized on Boot
+  - config.json (on the SD card) is used to initialize Config_t on boot
+  - If it dne, config.json is created as a blank json
+  - Using the config cli command writes config.json to  the SD card and updates the config struct
+
 Todo:
   - Define config struct data
-  - Take JSON data and update struct
-  - Write SD card driver
-  - Wihtin rfca.py, when sweep is issued, package the command and .csv name in JSON 
-      and send to Teensy
-  - When 'sweep' command is received, create a new .csv file with the corresponding name 
-      (it should be blank) in the Teensy's SD card
+  - config --get command returns the config.json that is currently on the SD card
+  - Upon initialization, create a 'Data' folder on SD card if it doesn't exist
+  - 'list' command returns a list of the contents within the Data folder (just the .csv file names)
+  - 'delete --name 'name.csv' deletes the specified .csv file from the data folder on the SD card
 */
-
-
-
-
-// This is the main file
-#include "config.h"
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
 
-Config_t sweep_config; // Global config -- contains signal sweep parameters
+#include "config.h"
+#include "./drivers/Inc/sd_card.h"
+#include "./drivers/Src/sd_card.c"  
+
+
+
+// Global config -- contains signal sweep parameters
+// From config.h
+Config_t sweep_config; 
 
 // Helper function declarations
 bool readLine(Stream &s, String &out, uint32_t timeout_ms);
@@ -33,9 +38,24 @@ bool readN(Stream &s, String &out, size_t n, uint32_t timeout_ms);
 
 void setup() {
   Serial.begin(9600);
-  while(!Serial) {
-    // Wait for Serial connection
-  }
+  while(!Serial) {}
+
+  // From sd_card.h
+  SD_init();
+  sweep_config = SD_get_config();
+
+  Serial.println(sweep_config.config1);
+  Serial.println(sweep_config.config2);
+  Serial.println(sweep_config.config3);
+  Serial.println(sweep_config.config4);
+
+  // Populate Config_t from the config file stored on the SD card
+
+  // If the config is updated by the user, we do the following: 
+  // 1. Parse the config.json file they sent
+  // 2. Write the parameters to the SD card's config.json file
+  // 3. Update Config_t sweep_config
+  
 }
 
 void loop() {
@@ -73,9 +93,10 @@ void loop() {
     // Get the command type from the JSON
     const char *cmd = doc["cmd"] | "";
 
-    if (strcmp(cmd, "config") == 0) {
+    if (strcmp(cmd, "config") == 0) 
+    {
 
-      // Pull config data from the JSON string and update the config struct
+      // Pull config data from the JSON string and update config.json file on the SD card
       JsonObject cfg = doc["data"].as<JsonObject>();
       updateConfig(cfg, &sweep_config);
 
@@ -94,9 +115,8 @@ void loop() {
 
 void updateConfig(JsonObject cfg, Config_t *sweep_config)
 {
-  int config_1 = cfg["config1"];
-  int config_2 = cfg["config2"];
-  int config_3 = cfg["config3"];
+  SD_update_config(cfg);
+  *sweep_config = SD_get_config();
 }
 
 // Utility: read a line ending in '\n' (non-blocking with timeout)

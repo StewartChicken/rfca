@@ -13,8 +13,8 @@ BAUD = 9600
 
 
 # Connect to Teensy
-#ser = serial.Serial(PORT, BAUD, timeout=1)
-#time.sleep(2)
+ser = serial.Serial(PORT, BAUD, timeout=1)
+time.sleep(2)
 
 parser = ArgumentParser(description="Main parser")
 subparsers = parser.add_subparsers(dest="command", required=True)
