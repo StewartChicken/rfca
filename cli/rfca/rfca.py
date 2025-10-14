@@ -8,7 +8,7 @@ import time
 import json
 import os
 import sys
-PORT = "COM7"
+PORT = "COM3"
 BAUD = 9600
 
 
@@ -100,9 +100,25 @@ if args.command == "sweep":
     # Receive update percentages (print update chars to console...)
     # Receive 'complete', print to console
     sweep_name = args.name
-    ser.write(b"sweep\n")
-    resp = ser.readline().decode(errors='ignore').strip()
-    print("Response:", resp)
+
+    envelope = {
+        "cmd": "sweep",
+        "data": sweep_name
+    }
+    body = json.dumps(envelope, separators=(",", ":")).encode("utf-8")
+
+    # 3) Write to USB
+    header = f"LEN {len(body)}\n".encode("utf-8")
+    ser.write(header)
+    ser.write(body)
+    ser.flush()
+
+    # 4) Wait for acknowledge
+    ack = ser.readline().decode("utf-8", errors="ignore").strip()
+    if ack == "OK":
+        print("Teensy acknowledged config: OK")
+    else:
+        print(f"Teensy response: {ack!r}")
 
 if args.command == "retrieve":
 
@@ -112,10 +128,27 @@ if args.command == "retrieve":
     print("Response:", resp)
 
 if args.command == "delete":
+
     sweep_name = args.name
-    ser.write(b"delete\n")
-    resp = ser.readline().decode(errors='ignore').strip()
-    print("Response:", resp)
+
+    envelope = {
+        "cmd": "delete",
+        "data": sweep_name
+    }
+    body = json.dumps(envelope, separators=(",", ":")).encode("utf-8")
+
+    # 3) Write to USB
+    header = f"LEN {len(body)}\n".encode("utf-8")
+    ser.write(header)
+    ser.write(body)
+    ser.flush()
+
+    # 4) Wait for acknowledge
+    ack = ser.readline().decode("utf-8", errors="ignore").strip()
+    if ack == "OK":
+        print("Teensy acknowledged config: OK")
+    else:
+        print(f"Teensy response: {ack!r}")
 
 if args.command == "cancel":
     ser.write(b"cancel\n")

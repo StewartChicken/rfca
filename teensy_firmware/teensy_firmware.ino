@@ -10,11 +10,20 @@ Done last week:
   - config.json (on the SD card) is used to initialize Config_t on boot
   - If it dne, config.json is created as a blank json
   - Using the config cli command writes config.json to  the SD card and updates the config struct
+  -
+  - Upon initialization, create a 'Data' folder on SD card if it doesn't exist
+  - sweep command creates a new data file with the specified name
 
 Todo:
+  - Build in an error handling system (return types for error prone functions)
+  - Build a better comm system between the CLI and the Teensy
+     - Standardize Teensy command processing: how to process the data and return info. (error data, success, etc)
+     - Translation layer diagram
+         - CLI -> JSON -> Serial -> Teensy
+         - Teensy -> Python 
+  - Design a unit and functional testing system
+  - Remove un-needed prints
   - Define config struct data
-  - config --get command returns the config.json that is currently on the SD card
-  - Upon initialization, create a 'Data' folder on SD card if it doesn't exist
   - 'list' command returns a list of the contents within the Data folder (just the .csv file names)
   - 'delete --name 'name.csv' deletes the specified .csv file from the data folder on the SD card
 */
@@ -25,7 +34,6 @@ Todo:
 #include "config.h"
 #include "./drivers/Inc/sd_card.h"
 #include "./drivers/Src/sd_card.c"  
-
 
 
 // Global config -- contains signal sweep parameters
@@ -41,7 +49,17 @@ void setup() {
   while(!Serial) {}
 
   // From sd_card.h
+  // Initialize the SD card
+  // Check if the SD card contains a config.json file
+  // If it does not, create one with default values
   SD_init();
+  if(!SD_does_config_exist())
+    SD_init_default_config();
+
+  if(!SD_does_data_dir_exist())
+    SD_init_data_dir();
+  
+  // Initialize sweep_config struct
   sweep_config = SD_get_config();
 
   Serial.println(sweep_config.config1);
@@ -50,16 +68,9 @@ void setup() {
   Serial.println(sweep_config.config4);
 
   // Populate Config_t from the config file stored on the SD card
-
-  // If the config is updated by the user, we do the following: 
-  // 1. Parse the config.json file they sent
-  // 2. Write the parameters to the SD card's config.json file
-  // 3. Update Config_t sweep_config
-  
 }
 
 void loop() {
-
   if (Serial.available()) {
     
     // We wait for a header line to be sent.
@@ -95,15 +106,25 @@ void loop() {
 
     if (strcmp(cmd, "config") == 0) 
     {
-
       // Pull config data from the JSON string and update config.json file on the SD card
+      // Update the sweep_config struct
       JsonObject cfg = doc["data"].as<JsonObject>();
-      updateConfig(cfg, &sweep_config);
-
-      Serial.println("Updated the sweep configuration");
+      SD_update_config(cfg);
+      sweep_config = SD_get_config();
     } 
     else if (strcmp(cmd, "sweep") == 0) {
-      
+      const char *sweep_name = doc["data"];
+
+      // This adds the sweep file to the ./data/ directory on the SD card
+      SD_add_sweep(sweep_name);
+
+      // Start sweep
+      // - Maybe create RTOS thread?
+      // - W/ an RTOS thread, we can continue listening to commands within the main loop
+    }
+    else if (strcmp(cmd, "delete") == 0) {
+      const char *sweep_name = doc["data"];
+      SD_delete_sweep(sweep_name);
     }
     else {
       Serial.println("ERR unknown_cmd");
