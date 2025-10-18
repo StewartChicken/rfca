@@ -9,9 +9,9 @@ Done last week:
   - SD card is initialized on Boot
   - config.json (on the SD card) is used to initialize Config_t on boot
   - If it dne, config.json is created as a blank json
-  - Using the config cli command writes config.json to  the SD card and updates the config struct
+  - Using the config cli command writes config.json to the SD card and updates the config struct
   -
-  - Upon initialization, create a 'Data' folder on SD card if it doesn't exist
+  - Upon initialization, create a 'data' folder on SD card if it doesn't exist
   - sweep command creates a new data file with the specified name
 
 Todo:
