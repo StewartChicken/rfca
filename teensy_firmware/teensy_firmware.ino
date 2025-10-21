@@ -71,6 +71,11 @@ void setup() {
 }
 
 void loop() {
+
+  // Loop Steps *draft*:
+  // if(commandIssued(&cmd_buffer, &JsonObject)) {
+  //  handle_command(str cmd, JsonObject data)
+  //  respond
   if (Serial.available()) {
     
     // We wait for a header line to be sent.
@@ -119,7 +124,7 @@ void loop() {
       SD_add_sweep(sweep_name);
 
       // Start sweep
-      // - Maybe create RTOS thread?
+      // - Maybe create RTOS thread? (non-blocking solution)
       // - W/ an RTOS thread, we can continue listening to commands within the main loop
     }
     else if (strcmp(cmd, "delete") == 0) {
