@@ -11,7 +11,7 @@ import time
 import json
 import os
 import sys
-PORT = "COM3"
+PORT = "COM7"
 BAUD = 9600
 
 
