@@ -1,4 +1,7 @@
 
+# TODO: dynamically assign COM port
+
+
 # Used to build the Command Line Interface (CLI)
 from argparse import ArgumentParser, Namespace
 
@@ -35,6 +38,9 @@ sweep_parser.add_argument(
     help="Specify the name of the sweep"
 )
 
+# Create the 'calibrate' subcommand
+calibrate_parser = subparsers.add_parser("calibrate", help="Calibrate thru loss")
+
 # Create the 'cancel' subcommand
 #cancel_parser = subparsers.add_parser("cancel", help="Cancels a running sweep")
 
@@ -66,6 +72,8 @@ if args.command == "config":
     # - Load config file based on filename
     # - Send 'config' command identifier and JSON
     # - Wait for OK response
+
+    #python rfca.py config --file config.json
 
     # 1) Open specified config.json file
     try: 

@@ -2,87 +2,105 @@
 #include <SD.h>
 #include "../Inc/sd_card.h"
 
-// This function is responsible for:
-//  1. Connecting to the SD card
-//  2. Checking for the existence of a config.json file
-//  3. Creating the config.json file if it dne
-void SD_init() {
-  if (!SD.begin(BUILTIN_SDCARD)) {
-    Serial.println("SD initialization failed!");
-    while (1);
-  }
-  Serial.println("SD initialization done.");
+
+status_t SD_init() {
+  if (!SD.begin(BUILTIN_SDCARD))
+    return STATUS_ERR_SD_INIT_FAILED;
+
+  return STATUS_OK;
 }
 
 bool SD_does_config_exist() {
   return SD.exists(CONFIG_PATH);
 }
 
-void SD_init_default_config() {
+// Create the config.json file on the SD card and write default values
+// Return error if unable to create
+status_t SD_init_default_config() {
   File cfg = SD.open(CONFIG_PATH, FILE_WRITE);
+  if(!cfg)
+    return STATUS_ERR_SD_OPEN_FAIL;
 
-  cfg.println("{");
-  cfg.println("}");
+  // For error handling
+  size_t bytes_written = 0;
+
+  // TODO - Create default config
+  bytes_written += cfg.println("{");
+  bytes_written += cfg.println("}");
   cfg.flush();
   cfg.close();
 
-  Serial.println("config.json created.");
+  if(bytes_written == 0)
+    return STATUS_ERR_SD_WRITE_FAIL;
+
+  return STATUS_OK;
 }
 
 bool SD_does_data_dir_exist(void) {
   return SD.exists(DATA_PATH);
 }
 
-void SD_init_data_dir(void) {
-  SD.mkdir(DATA_PATH);
+status_t SD_init_data_dir(void) {
+  // Used for error handling
+  bool success;
+  
+  success = SD.mkdir(DATA_PATH);
+  if(!success)
+    return STATUS_ERR_SD_DIR_CREATE_FAIL;
+
+  return STATUS_OK;
 }
 
-void SD_update_config(JsonObject cfg)
+status_t SD_update_config(JsonObject cfg)
 {
-  // First, delete the old config.json 
-  SD.remove(CONFIG_PATH);
+  // Used for error handling
+  bool success;
 
+  // First, delete the old config.json file
+  success = SD.remove(CONFIG_PATH);
+  if(!success)
+    return STATUS_ERR_SD_REMOVE_FAIL;
+
+  // Second, create a new config.json file
   File f = SD.open(CONFIG_PATH, FILE_WRITE);
-  if(!f) {
-    Serial.println("ERROR: Could not open /config.json for writing");
-    return;
-  }
+  if(!f) 
+    return STATUS_ERR_SD_OPEN_FAIL;
 
-  size_t written = serializeJson(cfg, f);  
+  size_t bytes_written = serializeJson(cfg, f);  
   f.flush();
   f.close();
 
-  if (written == 0) {
-    Serial.println("ERROR: Nothing was written to /config.json");
-    return;
-  }
+  if (bytes_written == 0)
+    return STATUS_ERR_SD_WRITE_FAIL;
 
-  Serial.print("Wrote ");
-  Serial.print(written);
-  Serial.println(" bytes to /config.json");
+  return STATUS_OK;
 }
 
-void SD_add_sweep(char* sweep_name)
+status_t SD_add_sweep(char* sweep_name)
 {
   
   char file_path[256]; // Max length of file path is 256 bytes = 256 characters
   int n = snprintf(file_path, sizeof(file_path), "%s/%s", DATA_PATH, sweep_name);
 
-  if (n <= 0 || n >= (int)sizeof(file_path)) {
-    // truncated or formatting error
-    return;
-  }
+  // TODO: Classify this
+  if (n <= 0 || n >= (int)sizeof(file_path))
+    return STATUS_ERR_UNKNOWN;
 
   File f = SD.open(file_path, FILE_WRITE);
+  if(!f)
+    return STATUS_ERR_SD_OPEN_FAIL;
   f.flush();
   f.close();
-  
+
+  return STATUS_OK;
 }
 
-void SD_delete_sweep(char* sweep_name)
+status_t SD_delete_sweep(char* sweep_name)
 {
-  char file_path[256];
+  // Used for error handling
+  bool success;
 
+  char file_path[256];
   int n = snprintf(file_path, sizeof(file_path), "%s/%s", DATA_PATH, sweep_name);
 
   if (n <= 0 || n >= (int)sizeof(file_path)) {
@@ -92,14 +110,17 @@ void SD_delete_sweep(char* sweep_name)
 
   // Check if the sweep file exists
   File f = SD.open(file_path, FILE_READ);
-  if(!f) {
-    return;
-  }
+  if(!f) 
+    return STATUS_ERR_SD_OPEN_FAIL;
 
   f.flush();
   f.close();
 
-  SD.remove(file_path);
+  success = SD.remove(file_path);
+  if(!success)
+    return STATUS_ERR_SD_REMOVE_FAIL;
+
+  return STATUS_OK;
 
 }
 
