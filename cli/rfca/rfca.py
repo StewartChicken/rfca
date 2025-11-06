@@ -164,9 +164,25 @@ if args.command == "cancel":
     print("Response:", resp)
 
 if args.command == "list":
-    ser.write(b"list\n")
-    resp = ser.readline().decode(errors='ignore').strip()
-    print("Response:", resp)
+    
+    envelope = {
+        "cmd": "list",
+        "data": None
+    }
+    body = json.dumps(envelope, separators=(",", ":")).encode("utf-8")
+
+    # 3) Write to USB
+    header = f"LEN {len(body)}\n".encode("utf-8")
+    ser.write(header)
+    ser.write(body)
+    ser.flush()
+
+    # 4) Wait for acknowledge
+    ack = ser.readline().decode("utf-8", errors="ignore").strip()
+    if ack == "OK":
+        print("Teensy acknowledged config: OK")
+    else:
+        print(f"Teensy response: {ack!r}")
 
 
 
