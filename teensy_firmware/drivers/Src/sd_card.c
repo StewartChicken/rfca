@@ -5,7 +5,7 @@
 
 status_t SD_init() {
   if (!SD.begin(BUILTIN_SDCARD))
-    return STATUS_ERR_SD_INIT_FAILED;
+    return STATUS_ERR_SD_INIT_FAIL;
 
   return STATUS_OK;
 }
@@ -78,7 +78,6 @@ status_t SD_update_config(JsonObject cfg)
 
 status_t SD_add_sweep(char* sweep_name)
 {
-  
   char file_path[256]; // Max length of file path is 256 bytes = 256 characters
   int n = snprintf(file_path, sizeof(file_path), "%s/%s", DATA_PATH, sweep_name);
 
@@ -95,6 +94,7 @@ status_t SD_add_sweep(char* sweep_name)
   return STATUS_OK;
 }
 
+// TODO: Redesign; not compatible with current error handling system
 status_t SD_delete_sweep(char* sweep_name)
 {
   // Used for error handling
@@ -105,7 +105,8 @@ status_t SD_delete_sweep(char* sweep_name)
 
   if (n <= 0 || n >= (int)sizeof(file_path)) {
     // truncated or formatting error
-    return;
+    // TODO: Categorize error
+    return STATUS_ERR_UNKNOWN;
   }
 
   // Check if the sweep file exists
@@ -116,19 +117,29 @@ status_t SD_delete_sweep(char* sweep_name)
   f.flush();
   f.close();
 
+  Serial.println(file_path);
+
   success = SD.remove(file_path);
-  if(!success)
+  if(!success){
+    Serial.println("Failed");
     return STATUS_ERR_SD_REMOVE_FAIL;
+  }
 
+  Serial.println("Success");
   return STATUS_OK;
-
 }
 
-Config_t SD_get_config()
+// TODO: Refactor. This should eventually just be a getter function. I don't think I want 
+//        the SD interface to include "config.h". Rather, it should return the JsonObject cfg and 
+//        the calling routine (main loop) should modify the struct in place.
+// Read config.json from SD card and populate global sweep_config struct with data
+status_t SD_set_config(Config_t* sweep_config)
 {
   Config_t cfg;
 
   File f = SD.open(CONFIG_PATH, FILE_READ);
+  if(!f)
+    return STATUS_ERR_SD_OPEN_FAIL;
   
   // ~1.5x file size + headroom.
   size_t sz = f.size();
@@ -136,7 +147,7 @@ Config_t SD_get_config()
 
   DeserializationError err = deserializeJson(doc, f);
   if(err) {
-    // Pass
+    // TODO: Handle error
   }
 
   f.close();
@@ -148,5 +159,30 @@ Config_t SD_get_config()
   cfg.config3 = root["config3"];
   cfg.config4 = root["config4"];
 
-  return cfg;
+  *sweep_config = cfg;
+
+  return STATUS_OK;
+}
+
+status_t SD_get_filenames(char filenames[][64], const uint8_t maxFiles, uint8_t* file_count)
+{
+  *file_count = 0;
+
+  File dir = SD.open(DATA_PATH);
+  if(!dir)
+    return STATUS_ERR_SD_OPEN_FAIL;
+
+  File entry;
+  while((*file_count < maxFiles) && (entry = dir.openNextFile())) {
+    const char* file_name = entry.name();
+
+    strncpy(filenames[*file_count], file_name, 63); // TODO: Third 64!
+    (*file_count)++;
+
+    entry.close();
+  }
+
+  dir.close();
+
+  return STATUS_OK;
 }

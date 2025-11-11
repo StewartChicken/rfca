@@ -29,7 +29,8 @@ status_t SD_add_sweep(char*);
 status_t SD_delete_sweep(char*);
 //void SD_add_sweep_data(data, sweep_name); // Appends sweep_data to the end of the sweep_name file
 
-// Getters
-Config_t SD_get_config(void);
+// Mutators
+status_t SD_set_config(Config_t*);
+status_t SD_get_filenames(char filenames[][64], const uint8_t maxFiles, uint8_t* file_count); // TODO: 2nd 64!
 
 #endif // _SD_INTERFACE_H
