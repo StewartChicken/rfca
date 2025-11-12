@@ -113,20 +113,41 @@ status_t processCommand(const char* cmd, JsonVariant data) {
 
     // Parse and Process
     if(strcmp(cmd, "config") == "0") {
-        // Pass
+        JsonObject cfg = data.as<JsonObject>();
+
+        // Update config.json on the SD card
+        cmd_status = SD_update_config(cfg);
+
+        if(cmd_status != STATUS_OK)
+            return cmd_status;
+
+        // TODO: Update the config struct with main defined helper function.
+        //       The SD driver should NOT need to update the config struct, 
+        //        that should be taken care of in this scope
+        cmd_status = SD_set_config(&sweep_config);
+
+        response["status"] = status_to_str(cmd_status);
+        response["data"]["CMD"] = cmd;
+        response["data"]["resp_data"] = NULL;
+
+        serializeJson(response, Serial);
+        return cmd_status;
     }
     else if(strcmp(cmd, "sweep") == 0) {
         const char *sweep_name = data.as<const char*>();
         cmd_status = SD_add_sweep(sweep_name);
 
+        // TODO: conduct sweep
+
         response["status"] = "OK";
         response["data"]["CMD"] = cmd;
-        response["data"]["resp_data"] = "Sweep conducted!";
+        response["data"]["resp_data"] = NULL; // TODO: Return sweep data
         
         serializeJson(response, Serial);
         return cmd_status;
     }
     else if(strcmp(cmd, "calibrate") == 0) {
+        // TODO: Calibrate lol
         // Pass
     }
     else if(strcmp(cmd, "list") == 0) {
@@ -152,6 +173,7 @@ status_t processCommand(const char* cmd, JsonVariant data) {
         return cmd_status;
     }
     else if(strcmp(cmd, "retrieve") == 0) {
+        // TODO: Retrieve the specified file and send to CLI
         // Pass
     }
     else if(strcmp(cmd, "delete") == 0) {
