@@ -94,8 +94,13 @@ status_t SD_add_sweep(char* sweep_name)
   return STATUS_OK;
 }
 
+status_t SD_add_sweep_data(uint32_t timestamp, uint32_t voltage)
+{
+  return STATUS_OK;
+}
+
 // TODO: Redesign; not compatible with current error handling system
-status_t SD_delete_sweep(char* sweep_name)
+status_t SD_delete_sweep(const char* sweep_name)
 {
   // Used for error handling
   bool success;
@@ -154,10 +159,7 @@ status_t SD_set_config(Config_t* sweep_config)
 
   JsonObjectConst root = doc.as<JsonObjectConst>();
   
-  cfg.config1 = root["config1"];
-  cfg.config2 = root["config2"];
-  cfg.config3 = root["config3"];
-  cfg.config4 = root["config4"];
+  cfg.sp8t_out_port = root["sp8t_out_port"];
 
   *sweep_config = cfg;
 
@@ -185,4 +187,21 @@ status_t SD_get_filenames(char filenames[][64], const uint8_t maxFiles, uint8_t*
   dir.close();
 
   return STATUS_OK;
+}
+
+// TODO: Finish and test this function
+status_t SD_get_config(JsonDocument& doc)
+{
+    File f = SD.open(CONFIG_PATH, FILE_READ);
+    if (!f)
+        return STATUS_ERR_SD_OPEN_FAIL;
+
+    // Deserialize into the provided JsonDocument
+    DeserializationError err = deserializeJson(doc, f);
+    f.close();
+
+    if (err)
+        return STATUS_ERR_JSON_DESERIALIZE_FAIL;
+
+    return STATUS_OK;
 }

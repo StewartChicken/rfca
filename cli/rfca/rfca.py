@@ -9,7 +9,7 @@ import serial
 import time
 import json
 import sys
-PORT = "COM7"
+PORT = "COM3"
 BAUD = 9600
 
 # Connect to Teensy
