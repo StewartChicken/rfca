@@ -149,9 +149,7 @@ void thread_average_log_amp() {
         float power_out = (avg_voltage / 0.0187) - 64.4;
 
         Serial.println(power_out);
-    }
-
-    
+    }    
 }
 
 status_t processCommand(const char* cmd, JsonVariant data) {
