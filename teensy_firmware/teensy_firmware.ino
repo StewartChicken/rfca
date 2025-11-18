@@ -62,7 +62,8 @@ void setup() {
     sp8t_init();
 
     // Init threads
-    threads.addThread(thread_read_log_amp);
+    //threads.addThread(thread_read_log_amp);
+    threads.addThread(thread_average_log_amp);
 
     // Open Serial communication (USB-CDC for Teensy 4.1) after peripheral initialization
     // Wait for host to run python script
@@ -122,8 +123,33 @@ void thread_read_log_amp() {
         float power_out = (voltage / 0.0187) - 64.4; 
         Serial.println(power_out);
 
-        threads.delay(LOG_AMP_READ_DELAY);
+        //threads.delay(LOG_AMP_READ_DELAY); // 10 ms right now. Sample 10 then average?
+        threads.delay(500); // 10 ms right now. Sample 10 then average?
     }  
+}
+
+void thread_average_log_amp() {
+
+    const int NUM_SAMPLES = 50;
+    
+    while(1) {
+        float sum_voltage = 0.0f;
+
+        // Sample 50 times then print the average
+        for (int i = 0; i < NUM_SAMPLES; i++) {
+            int raw = analogRead(LOG_AMP_1);
+
+            float voltage = (raw * ADC_REF_VOLTAGE) / ADC_MAX_VALUE;
+            sum_voltage += voltage;
+
+            threads.delay(LOG_AMP_READ_DELAY); // 10 ms
+        }
+
+        float avg_voltage = sum_voltage / NUM_SAMPLES;
+        float power_out = (avg_voltage / 0.0187) - 64.4;
+
+        Serial.println(power_out);
+    }    
 }
 
 status_t processCommand(const char* cmd, JsonVariant data) {
