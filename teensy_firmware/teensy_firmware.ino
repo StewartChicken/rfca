@@ -117,7 +117,7 @@ void thread_read_log_amp() {
 
         // Convert raw ADC value to voltage
         float voltage = (raw * ADC_REF_VOLTAGE) / ADC_MAX_VALUE;
-        //Serial.println(voltage);
+        //Serial.println(voltage);s
 
         float power_out = (voltage / 0.0187) - 64.4; 
         Serial.println(power_out);
