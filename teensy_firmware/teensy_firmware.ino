@@ -25,6 +25,7 @@
 // - Can create sweep file
 // - Can list sweep files
 // - Can delete sweep file
+// - Created the temp_struct in the sweep function (Very last thing done)
 //
 // Next steps:
 // - Design a frequency sweep from laptop -> firmware (What happens when the "sweep" command is issued?)
@@ -97,20 +98,6 @@ void setup() {
     // TODO: Remove (dev functions)
     print_json(config_doc);
     Serial.println(sweep_config.sp8t_out_port);
-}
-
-Config_t update_config_struct(const JsonDocument& config) {
-    Config_t config_struct;
-
-    // Populate struct values
-    config_struct.sp8t_out_port = config["sp8t_out_port"];
-
-    return config_struct;
-}
-
-void print_json(const JsonDocument& doc) {
-    serializeJsonPretty(doc, Serial);
-    Serial.println();
 }
 
 // Main Loop structure:
@@ -191,6 +178,15 @@ status_t processCommand(const char* cmd, JsonVariant data) {
     else if(strcmp(cmd, "sweep") == 0) {
         const char *sweep_name = data.as<const char*>();
         cmd_status = SD_add_sweep(sweep_name);
+        
+        // Placeholder for Config_t sweep_config struct
+        struct temp_data{
+            uint8_t out_ports[] = {2, 3, 6, 7}; // SP8T ports, values range from 1-8
+            uint8_t in_ports[]  = {1, 4, 5}     // Log amp ports, values range from 1-10
+            uint32_t start      = 400;          // MHz     
+            uint32_t stop       = 6000;         // MHz
+            uint32_t step       = 100;          // MHz
+        };
 
         // Here's what the sweep function should look like. All of its arguments should be provided by
         //  the Config_t sweep_config struct.
@@ -202,10 +198,19 @@ status_t processCommand(const char* cmd, JsonVariant data) {
         // - stop is stop frequency in MHz
         // - intvl is spacing between measurements in MHz
         // func conduct_sweep(sp8t_ports[arr], in_ports[arr], start, stop, intvl):
-        //      curr_freq = start;
+        //      
+        //      for port in sp8t_ports:
+        //          curr_freq = start;
         //
-        //      while(curr_freq < stop):
-        //          for port in sp8t_ports:
+        //          while(curr_freq < stop):
+        //              adf_out(curr_freq)
+        //              delay 
+        //
+        //              for in_port in in_ports:
+        //                  power = analog_read(in_port) 
+        //                  store_data(power, in_port)
+        //
+        //              curr_freq += intvl
         //          
 
         // TODO: conduct sweep
@@ -267,4 +272,20 @@ status_t processCommand(const char* cmd, JsonVariant data) {
     }
 
     return cmd_status;
+}
+
+Config_t update_config_struct(const JsonDocument& config) {
+    Config_t config_struct;
+
+    // Populate struct values
+    config_struct.sp8t_out_port = config["sp8t_out_port"];
+
+    return config_struct;
+}
+
+void conduct_sweep()
+
+void print_json(const JsonDocument& doc) {
+    serializeJsonPretty(doc, Serial);
+    Serial.println();
 }
