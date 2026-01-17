@@ -15,9 +15,39 @@
 //  - If an error is thrown in setup, how to communicate? Can't be printed
 // Sweep conduction using ADF driver
 // Config struct
-// Readability: within Setup, commbine existence checks into init_defaults for better readability
 // Handle blank responses from teensy (usually occur after first boot or reset)
 // Design response data
+
+// Just done: 1/17/2026
+// - Using Arduino IDE serial to communicate with firmware
+//   - Sending raw JSON packets: e.g. {cmd: "delete", data: "Sweep1"}
+// - Can update Config.json and Config_t
+// - Can create sweep file
+// - Can list sweep files
+// - Can delete sweep file
+//
+// Next steps:
+// - Design a frequency sweep from laptop -> firmware (What happens when the "sweep" command is issued?)
+// - To start, ignore calibration necessity and assume the measured data is ideal
+// - Figure out all possible combinations of sweeps (ports, output measurement) and design config system that makes each combination reachable
+// - Design ADF5356 driver
+//   - Set Out Frequency
+// - Design a frequency sweep from Firmware perspective
+//   - Function: conduct_sweep(uint8_t out_port, uint8_t[] in_ports, uint32_t start_fq, uint32_t end_fq, uint32_t intvl)
+//      - open sp8t port
+//      - LOOP: start_fq, end_fq, intvl
+//          - set out adf5356 frequency
+//          - delay
+//          - analog_read each in_port
+
+// Future notes:
+// When it comes time to update the data in the Config_t struct, design needs to change in three places:
+// - The config.json file which is fed as input to the CLI must reflect the data structure
+// - The update_config_struct() function must be altered to extract the correct values from incoming data
+// - The Config_t struct definition must be updated in common_defs.h
+
+// Documentation
+// https://arduinojson.org/v7/
 
 
 // Libraries
@@ -51,16 +81,13 @@ void setup() {
     //  - ./data
     // If dne, create the files
     global_status = SD_init();
-    if(!SD_does_config_exist())
-        global_status = SD_init_default_config();
 
-    if(!SD_does_data_dir_exist())
-        global_status = SD_init_data_dir();
 
+    // Get Config from SD card and populate sweep_config struct
     JsonDocument config_doc;
     global_status = SD_get_config(config_doc);
-
     sweep_config = update_config_struct(config_doc);
+
     
     // Open Serial communication (USB-CDC for Teensy 4.1) after peripheral initialization
     // Wait for host to run Python script
@@ -138,27 +165,48 @@ status_t processCommand(const char* cmd, JsonVariant data) {
 
         // Update config.json on the SD card
         cmd_status = SD_update_config(cfg);
+        // TODO: Handle error
 
-        // TODO: Update the config struct with main defined helper function.
-        //       The SD driver should NOT need to update the config struct, 
-        //        that should be taken care of in this scope
-        //SD_get_config(&sweep_config);
+        // Assuming updating the config doesn't throw an error, the next step is to 
+        // retrieve the updated config from the SD card and use its data to update
+        // the sweep_config struct.
 
+        // First we pull the data from the SD card
+        JsonDocument config_doc;
+        cmd_status = SD_get_config(config_doc);
+        // TODO: Handle error
+
+        // Assuming no error is thrown, proceed to update the struct
+        sweep_config = update_config_struct(config_doc);
+
+        // Construct the response to the CLI
+        // TODO: Response is constructed assuming no error is thrown. Add the case where the error is thrown.
         response["status"] = status_to_str(cmd_status);
-        response["data"]["CMD"] = cmd;
+        response["cmd"] = cmd;
+        response["sd_config"] = config_doc; // This is the config data the SD card contains
 
-        if(cmd_status != STATUS_OK) {
-            response["data"]["resp_data"] = "";
-        }
-        else {
-            response["data"]["resp_data"] = "Configured config.json";
-        }
-
+        // Send response
         serializeJson(response, Serial);
     }
     else if(strcmp(cmd, "sweep") == 0) {
         const char *sweep_name = data.as<const char*>();
         cmd_status = SD_add_sweep(sweep_name);
+
+        // Here's what the sweep function should look like. All of its arguments should be provided by
+        //  the Config_t sweep_config struct.
+        // 
+        // Params:
+        // - sp8_t_ports specifies which of the 8 outputs from the sp8t board will be swept over
+        // - in_ports specifies which logAmp inputs will be read for each sp8t port
+        // - start is start frequency in MHz
+        // - stop is stop frequency in MHz
+        // - intvl is spacing between measurements in MHz
+        // func conduct_sweep(sp8t_ports[arr], in_ports[arr], start, stop, intvl):
+        //      curr_freq = start;
+        //
+        //      while(curr_freq < stop):
+        //          for port in sp8t_ports:
+        //          
 
         // TODO: conduct sweep
         // 1) Enable correct sp8t port
@@ -174,7 +222,7 @@ status_t processCommand(const char* cmd, JsonVariant data) {
         //   writeSD(filename, power);
 
         response["status"] = status_to_str(cmd_status);
-        response["data"]["CMD"] = cmd;
+        response["cmd"] = cmd;
         response["data"]["resp_data"] = NULL; // TODO: Return sweep data?
         
         serializeJson(response, Serial);
@@ -188,14 +236,12 @@ status_t processCommand(const char* cmd, JsonVariant data) {
         char filenames[MAX_FILES][64];
         uint8_t file_count = 0;
 
-        // TODO: cmd_status = SD_get_filenames(filenames, MAX_FILES, &file_count);
-        //SD_get_filenames(filenames, MAX_FILES, &file_count);
-
+        cmd_status = SD_get_filenames(filenames, MAX_FILES, &file_count);
+        
         response["status"] = "OK";
+        response["cmd"] = cmd;
         
         JsonObject data = response["data"].to<JsonObject>();
-        data["CMD"] = cmd;
-
         JsonArray arr = data["resp_data"].to<JsonArray>();
 
         // Populate array
@@ -214,7 +260,7 @@ status_t processCommand(const char* cmd, JsonVariant data) {
         cmd_status = SD_delete_sweep(sweep_name);
         
         response["status"] = status_to_str(cmd_status);
-        response["data"]["CMD"] = cmd;
+        response["cmd"] = cmd;
         response["data"]["resp_data"] = "Sweep Deleted!";
         
         serializeJson(response, Serial);

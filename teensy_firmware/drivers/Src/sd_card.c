@@ -4,10 +4,23 @@
 #include "../Inc/sd_card.h"
 
 status_t SD_init() {
+  status_t SD_status = STATUS_OK;
+
   if(!SD.begin(BUILTIN_SDCARD))
     return STATUS_ERR_SD_INIT_FAIL;
-  
-  return STATUS_OK;
+
+  // Initialize config.json if dne
+  if(!SD_does_config_exist())
+    SD_status = SD_init_default_config();
+
+  if(SD_status != STATUS_OK)
+    return SD_status;
+
+  // Initialize ./data dir if dne
+  if(!SD_does_data_dir_exist())
+        SD_status = SD_init_data_dir();
+
+  return SD_status;
 }
 
 bool SD_does_config_exist() {
@@ -90,8 +103,37 @@ status_t SD_add_sweep(const char* sweep_name) {
     return STATUS_OK;
 }
 
-status_t SD_delete_sweep(const char* sweep_name) {
+// TODO: Redesign; not compatible with current error handling system
+status_t SD_delete_sweep(const char* sweep_name)
+{
+  // Used for error handling
+  bool success;
 
+  char file_path[256];
+  int n = snprintf(file_path, sizeof(file_path), "%s/%s", DATA_PATH, sweep_name);
+
+  if (n <= 0 || n >= (int)sizeof(file_path)) {
+    // truncated or formatting error
+    // TODO: Categorize error
+    return STATUS_ERR_UNKNOWN;
+  }
+
+  // Check if the sweep file exists
+  File f = SD.open(file_path, FILE_READ);
+  if(!f) 
+    return STATUS_ERR_SD_OPEN_FAIL;
+
+  f.flush();
+  f.close();
+
+  Serial.println(file_path);
+
+  success = SD.remove(file_path);
+  if(!success){
+    return STATUS_ERR_SD_REMOVE_FAIL;
+  }
+
+  return STATUS_OK;
 }
 
 // Reads config.json on SD card and returns a JsonDocument containing its data
@@ -111,13 +153,27 @@ status_t SD_get_config(JsonDocument& doc) {
   return STATUS_OK;
 }
 
-/*
-void SD_get_config(Config_t*) {
+// TODO: Refactor (I don't like the hard-coded 64-byte size)
+status_t SD_get_filenames(char filenames[][64], const uint8_t maxFiles, uint8_t* file_count)
+{
+  *file_count = 0;
 
+  File dir = SD.open(DATA_PATH);
+  if(!dir)
+    return STATUS_ERR_SD_OPEN_FAIL;
+
+  File entry;
+  while((*file_count < maxFiles) && (entry = dir.openNextFile())) {
+    const char* file_name = entry.name();
+
+    strncpy(filenames[*file_count], file_name, 63); // TODO: Third 64!
+    (*file_count)++;
+
+    entry.close();
+  }
+
+  dir.close();
+
+  return STATUS_OK;
 }
 
-void SD_get_filenames(char filenames[][64], const uint8_t maxFiles, uint8_t* file_count) {
-
-} // TODO: refactor
-
-*/

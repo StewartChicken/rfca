@@ -78,6 +78,8 @@ typedef enum {
     STATUS_ERR_SD_WRITE_FAIL        = 0X13,
     STATUS_ERR_SD_DIR_CREATE_FAIL   = 0X14,
     STATUS_ERR_SD_REMOVE_FAIL       = 0X15,
+
+    STATUS_ERR_UNKNOWN              = 0XFF,
 } status_t;
 
 const char* status_to_str(status_t s)
@@ -91,6 +93,8 @@ const char* status_to_str(status_t s)
         case STATUS_ERR_SD_WRITE_FAIL:      return "SD Data Write Failed";
         case STATUS_ERR_SD_DIR_CREATE_FAIL: return "SD Directory Creation Failed";
         case STATUS_ERR_SD_REMOVE_FAIL:     return "SD Data Removal Failed";
+
+        case STATUS_ERR_UNKNOWN:            return "Unknown Error Code";
 
         default:                            return "Unknown Error Code";
 
