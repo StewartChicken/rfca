@@ -24,31 +24,40 @@ line2, = ax2.plot([], [], marker='o', linestyle='-', color='orange')
 ax2.set_title("Loss")
 ax2.set_ylabel("Power Loss (dB)")
 
-MAX_POINTS = 200
+MAX_POINTS = 2000
 xs = deque(maxlen=MAX_POINTS)
 ys_raw = deque(maxlen=MAX_POINTS)
 ys_transformed = deque(maxlen=MAX_POINTS)
 
 sample_index = 0
 
+# Average for 5 minutes
+avg_5 = 0
+iter = 100
+
+LOSS_OFFSET = 3
+
 try:
     while True:
+    #for _ in range(iter): 
         raw = ser.readline().decode("utf-8", errors="ignore").strip()
         if not raw:
             continue
 
         print(raw)
-
+        
         # Try parsing first token as float
         try:
             value = float(raw.split()[0].replace(',', ''))
         except:
             continue
 
+        avg_5 = avg_5 + value
+
         # Append raw and transformed data
         xs.append(sample_index)
         ys_raw.append(value)
-        ys_transformed.append(-5 - value)
+        ys_transformed.append((-value) - LOSS_OFFSET)
         sample_index += 1
 
         # Update plots
@@ -60,14 +69,19 @@ try:
 
         # Rescale axes
         ax1.relim()
+        #ax1.set_ylim(-50, 0)
         ax1.autoscale_view()
 
         ax2.relim()
+        #ax2.set_ylim(-20, 20)
         ax2.autoscale_view()
 
         fig.canvas.draw()
         fig.canvas.flush_events()
-        time.sleep(0.01)
+        time.sleep(0.1) # Pause .1 seconds 
+
+    print("average:")
+    print(avg_5 / iter)
 
 except KeyboardInterrupt:
     print("\nExiting...")

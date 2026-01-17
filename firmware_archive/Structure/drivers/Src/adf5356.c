@@ -11,7 +11,7 @@ void ADF_init() {
     pinMode(ADF_CLK, OUTPUT);
 
     // Pulled low until data must be written
-    digitalWrite(ADF_LE, LOW);
+    digitalWrite(LE, LOW);
 }
 
 void ADF_set_out_freq(uint32_t frequency) {

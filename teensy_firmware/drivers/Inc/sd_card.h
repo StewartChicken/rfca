@@ -7,12 +7,9 @@
 #include <SD.h>
 
 // Data
-#include "../../error.h"
-#include "../../config.h"
+#include "../../common_defs.h"
 
-#define SD_CS BUILTIN_SDCARD  // For Teensy 4.1 SDIO slot
-
-// The config file will be stored at this path on the SD card
+// The config file and sweep data will be stored at these paths on the SD card
 static const char* CONFIG_PATH = "/config.json";
 static const char* DATA_PATH = "/data";
 
@@ -24,18 +21,18 @@ bool SD_does_data_dir_exist(void);
 status_t SD_init_data_dir(void);
 
 // Update functions
-status_t SD_update_config(JsonObject);
-status_t SD_add_sweep(char*);
-status_t SD_add_sweep_data(uint32_t, uint32_t); // Time Interval, Voltage
+status_t SD_update_config(const JsonObject& doc);
+status_t SD_add_sweep(const char*); // Sweep name
 status_t SD_delete_sweep(const char*);
-//void SD_add_sweep_data(data, sweep_name); // Appends sweep_data to the end of the sweep_name file
+// TODO: void SD_add_sweep_data(uint32_t, uint32_t); // Time interval, Voltage
 
-// Mutators
-status_t SD_set_config(Config_t*);
-status_t SD_get_filenames(char filenames[][64], const uint8_t maxFiles, uint8_t* file_count); // TODO: 2nd 64!
-
-// TODO: Finish this function
+// Retrieve the config.json file from the SD card
 status_t SD_get_config(JsonDocument& doc);
+
+//void SD_get_config(Config_t*);
+//void SD_get_filenames(char filenames[][64], const uint8_t maxFiles, uint8_t* file_count); // TODO: refactor
+// TODO: void SD_get_config()
+
 
 
 #endif // _SD_INTERFACE_H

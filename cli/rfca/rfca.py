@@ -9,7 +9,7 @@ import serial
 import time
 import json
 import sys
-PORT = "COM3"
+PORT = "COM4"
 BAUD = 9600
 
 # Connect to Teensy
@@ -87,8 +87,13 @@ def sendJson(cmd, data):
     ser.flush()
 
     # Wait for firmware response
-    ack = ser.readline().decode("utf-8", errors="ignore").strip()
-    print(f"Teensy response: {ack!r}")
+    response = ser.readline().decode("utf-8", errors="ignore").strip()
+    #print(f"Teensy response: {response!r}")
+    return response
+
+# TODO: Write this function. This is a placeholder right now
+def processResponse(resp):
+    print(f"Teensy response: {resp}")
 
 
 ###############################
@@ -107,29 +112,34 @@ if args.command == "config":
         print(f"Failed to read/parse JSON file: {e}")
         sys.exit(1)
 
-    sendJson("config", cfg_obj)
+    response = sendJson("config", cfg_obj)
+    processResponse(response)
 
 # Example usage: 
 # python rfca.py sweep --name "Sweep1"
 if args.command == "sweep":
     sweep_name = args.name
-    sendJson("sweep", sweep_name)
+    response = sendJson("sweep", sweep_name)
+    processResponse(response)
 
 # Example usage:
 # python rfca.py retrieve --name "Sweep1"
 if args.command == "retrieve":
     sweep_name = args.name
-    sendJson("retrieve", sweep_name)
+    response = sendJson("retrieve", sweep_name)
+    processResponse(response)
 
 # Example usage:
 # python rfca.py delete --name "Sweep1"
 if args.command == "delete":
     sweep_name = args.name
-    sendJson("delete", sweep_name)
+    response = sendJson("delete", sweep_name)
+    processResponse(response)
 
 # Example usage:
 # python rfca.py list
 if args.command == "list":
-    sendJson("list", None)
+    response = sendJson("list", None)
+    processResponse(response)
     
 ser.close()

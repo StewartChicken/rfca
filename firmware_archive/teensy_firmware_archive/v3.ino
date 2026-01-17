@@ -1,48 +1,45 @@
 
-// TODO:
-// Finish SD control
-//  - Finish functions
-//  - Change update config scope
-//  - Controlled via CLI
-//  - Refactor filename buffer design
-// ADF5356 Driver
-//  - SPI interface (init, write 32-bit word)
-//  - Write reg function
-//  - ...
-// Error handling
-//  - CLI communication
-//  - CLI handling
-//  - If an error is thrown in setup, how to communicate? Can't be printed
-// Sweep conduction using ADF driver
-// Config struct
-// Readability: within Setup, commbine existence checks into init_defaults for better readability
-// Handle blank responses from teensy (usually occur after first boot or reset)
-// Design response data
-
+// Last thing done: Send/Receive JSON from Teensy via Serial monitor
+// Todo: 
+//  - Implement remaining commands for use with Serial Monitor
+//      - Retrieve (name)
+//  - Ensure errors are propagating correctly
+//  - Verify use with CLI
+//  - Write power val to specified .csv (read from analog pin)
+//  - Outline adf5356 driver skeleton 
+//      - General 'generateFrequency(uint32_t frequency)' stub (both USB and SPI versions later)
+//  - Graph .csv obtained using 'Retrieve' command from CLI
+//  - 10-12 bit resolution for ADC? Average at 12 bit
+//  - Sample rate for ADC
 
 // Libraries
 #include <Arduino.h>
 #include <ArduinoJson.h>
+#include <TeensyThreads.h>
 
 // Data
+#include "error.h"
+#include "config.h"
 #include "common_defs.h"
 
 // Drivers
 #include "./drivers/Inc/sd_card.h"
 #include "./drivers/Src/sd_card.c"
+#include "./drivers/Inc/sp8t.h"
+#include "./drivers/Src/sp8t.c"
 
 Config_t sweep_config;
 
 // Variables to process incoming data
-static const size_t BUFFER_SIZE = 10 * 1024; // 10 KB Max input string (for now)
+static const size_t BUFFER_SIZE = 10 * 1024; // 10 KB Max input string
 static char buffer[BUFFER_SIZE];
 static size_t idx = 0;
-
 
 // Main loop error handling. This is the status which is communicated to the Python Host
 static status_t global_status = STATUS_OK;
 
 void setup() {
+    status_t temp_status;
 
     // From sd_card.h
     // Initialize the SD card hardware
@@ -50,40 +47,30 @@ void setup() {
     //  - config.json
     //  - ./data
     // If dne, create the files
-    global_status = SD_init();
+    temp_status = SD_init();
     if(!SD_does_config_exist())
-        global_status = SD_init_default_config();
+        temp_status = SD_init_default_config();
 
     if(!SD_does_data_dir_exist())
-        global_status = SD_init_data_dir();
+        temp_status = SD_init_data_dir();
 
-    JsonDocument config_doc;
-    global_status = SD_get_config(config_doc);
+    // Initialize the sweep_config struct by reading the
+    //  config.json file on the SD card
+    temp_status = SD_set_config(&sweep_config);
 
-    sweep_config = update_config_struct(config_doc);
-    
+    // V1, V2, V3, ENABLE, LS Pin initialization
+    sp8t_init();
+    sp8t_enablePort(3);
+
+    // Init threads
+    threads.addThread(thread_read_log_amp);
+    //threads.addThread(thread_moving_average_log_amp);
+    //threads.addThread(thread_total_average_log_amp);
+
     // Open Serial communication (USB-CDC for Teensy 4.1) after peripheral initialization
-    // Wait for host to run Python script
+    // Wait for host to run python script
     Serial.begin(9600); // Baud is irrelevant for USB-CDC
-    while (!Serial) {} // Stuck in this loop until the Python script is run
-
-    // TODO: Remove (dev functions)
-    print_json(config_doc);
-    Serial.println(sweep_config.sp8t_out_port);
-}
-
-Config_t update_config_struct(const JsonDocument& config) {
-    Config_t config_struct;
-
-    // Populate struct values
-    config_struct.sp8t_out_port = config["sp8t_out_port"];
-
-    return config_struct;
-}
-
-void print_json(const JsonDocument& doc) {
-    serializeJsonPretty(doc, Serial);
-    Serial.println();
+    while (!Serial) {} 
 }
 
 // Main Loop structure:
@@ -93,7 +80,9 @@ void print_json(const JsonDocument& doc) {
 // 4. Load buffer -> JSON
 // 5. Process JSON command
 void loop() {
+
     if(Serial.available()) {
+
         // Read character off the top of the buffer
         char c = (char)Serial.read();
 
@@ -125,36 +114,97 @@ void loop() {
     }
 }
 
+void thread_read_log_amp() {
+    while(1) {
+        int raw = analogRead(LOG_AMP_1);
+
+        // Convert raw ADC value to voltage
+        float voltage = (raw * ADC_REF_VOLTAGE) / ADC_MAX_VALUE;
+        //Serial.println(voltage);
+
+        float power_out = (voltage / 0.0187) - 64.4; 
+        Serial.println(power_out);
+
+        //threads.delay(LOG_AMP_READ_DELAY); // 10 ms right now. Sample 10 then average?
+        threads.delay(500); // 10 ms right now. 
+    }  
+}
+
+// Prints a moving average with a specified sample windows size
+void thread_moving_average_log_amp() {
+    const int NUM_SAMPLES = 50; // MA window size
+
+    while(1) {
+        float sum_voltage = 0.0f;
+
+        for(int i = 0; i < NUM_SAMPLES; i ++) {
+            int raw = analogRead(LOG_AMP_1);
+            float voltage = (raw * ADC_REF_VOLTAGE) / ADC_MAX_VALUE;
+            sum_voltage += voltage;
+
+            threads.delay(LOG_AMP_READ_DELAY); // 10 ms
+        }
+
+        // Moving average
+        float avg_voltage = sum_voltage / NUM_SAMPLES;
+        float power_out = (avg_voltage / 0.0187) - 64.4;
+        Serial.println(power_out);
+    }
+}
+
+// Prints the average of every single sample
+void thread_total_average_log_amp() {
+
+    uint32_t samples = 0;
+    float sum_voltage = 0.0f;
+    
+    while(1) {
+
+        int raw = analogRead(LOG_AMP_1);
+        float voltage = (raw * ADC_REF_VOLTAGE) / ADC_MAX_VALUE;
+        sum_voltage += voltage;
+        samples++;
+
+        float avg_voltage = sum_voltage / samples;
+        float power_out = (avg_voltage / 0.0187) - 64.4;
+
+        Serial.println(power_out);
+        threads.delay(LOG_AMP_READ_DELAY * 10); // 100 ms
+    }    
+}
+
 status_t processCommand(const char* cmd, JsonVariant data) {
 
-  // Error handling
-  status_t cmd_status = STATUS_OK;
+    // Error handling
+    status_t cmd_status = STATUS_OK;
 
-  JsonDocument response;
+    // Response doc to client
+    JsonDocument response;
 
-  // Parse and Process
+    // Parse and Process
     if(strcmp(cmd, "config") == 0) {
         JsonObject cfg = data.as<JsonObject>();
 
         // Update config.json on the SD card
         cmd_status = SD_update_config(cfg);
 
+        if(cmd_status != STATUS_OK)
+        {
+            Serial.println("Failed");
+            return cmd_status;
+        }
+
         // TODO: Update the config struct with main defined helper function.
         //       The SD driver should NOT need to update the config struct, 
         //        that should be taken care of in this scope
-        //SD_get_config(&sweep_config);
+        cmd_status = SD_set_config(&sweep_config);
 
         response["status"] = status_to_str(cmd_status);
         response["data"]["CMD"] = cmd;
-
-        if(cmd_status != STATUS_OK) {
-            response["data"]["resp_data"] = "";
-        }
-        else {
-            response["data"]["resp_data"] = "Configured config.json";
-        }
+        response["data"]["resp_data"] = "Configured config.json";
 
         serializeJson(response, Serial);
+        return cmd_status;
     }
     else if(strcmp(cmd, "sweep") == 0) {
         const char *sweep_name = data.as<const char*>();
@@ -166,30 +216,30 @@ status_t processCommand(const char* cmd, JsonVariant data) {
         //     a) Write ADF5356 (generate signal)
         //     b) Analog Read log-amp (measure signal)
         //     c) Record voltage (write to SD card sweep.csv)
-        //sp8t_enablePort(sweep_config.sp8t_out_port); // 1)
+        sp8t_enablePort(sweep_config.sp8t_out_port); // 1)
 
         // for each freq in frequency_range:
         //   genFreq(freq);
         //   power = analogRead(logAmp) + sum math;
         //   writeSD(filename, power);
 
-        response["status"] = status_to_str(cmd_status);
+        response["status"] = "OK";
         response["data"]["CMD"] = cmd;
         response["data"]["resp_data"] = NULL; // TODO: Return sweep data?
         
         serializeJson(response, Serial);
+        return cmd_status;
     }
     else if(strcmp(cmd, "calibrate") == 0) {
         // TODO: Calibrate lol
-        // Pass for now
+        // Pass
     }
     else if(strcmp(cmd, "list") == 0) {
         const uint8_t MAX_FILES = 20;
         char filenames[MAX_FILES][64];
         uint8_t file_count = 0;
 
-        // TODO: cmd_status = SD_get_filenames(filenames, MAX_FILES, &file_count);
-        //SD_get_filenames(filenames, MAX_FILES, &file_count);
+        cmd_status = SD_get_filenames(filenames, MAX_FILES, &file_count);
 
         response["status"] = "OK";
         
@@ -204,6 +254,7 @@ status_t processCommand(const char* cmd, JsonVariant data) {
         }
 
         serializeJson(response, Serial);
+        return cmd_status;
     }
     else if(strcmp(cmd, "retrieve") == 0) {
         // TODO: Retrieve the specified file and send to CLI
@@ -212,13 +263,20 @@ status_t processCommand(const char* cmd, JsonVariant data) {
     else if(strcmp(cmd, "delete") == 0) {
         const char *sweep_name = data.as<const char*>();
         cmd_status = SD_delete_sweep(sweep_name);
-        
-        response["status"] = status_to_str(cmd_status);
+
+        response["status"] = "OK";
         response["data"]["CMD"] = cmd;
         response["data"]["resp_data"] = "Sweep Deleted!";
         
         serializeJson(response, Serial);
+        return cmd_status;
     }
+    else if(strcmp(cmd, "port") == 0) { // Dev command to quickly switch the SP8T port
+        uint8_t port = data.as<uint8_t>();
+        sp8t_enablePort(port);
 
-    return cmd_status;
-}
+        Serial.print("Opened port: ");
+        Serial.println(port);
+        return cmd_status;
+    }
+ }
