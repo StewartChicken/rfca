@@ -61,6 +61,8 @@
 // Drivers
 #include "./drivers/Inc/sd_card.h"
 #include "./drivers/Src/sd_card.c"
+#include "./drivers/Inc/adf5355.h"
+#include "./drivers/Src/adf5355.c"
 
 Config_t sweep_config;
 
@@ -72,6 +74,104 @@ static size_t idx = 0;
 
 // Main loop error handling. This is the status which is communicated to the Python Host
 static status_t global_status = STATUS_OK;
+
+adf5355_dev adf_dev_struct;
+
+/*
+
+adf_dev_struct.spi_desc         = NULL;  // Come back
+adf_dev_struct.dev_id           = ADF5356;
+//adf_dev_struct.all_synced     // No Need - assigned in adf5355_setup()
+//adf_dev_struct.regs = {0};    // No Need - assigned in adf5355_setup()
+//adf_dev_struct.freq_req       // No Need - assigned in adf5355_set_freq()
+adf_dev_struct.freq_req_chan    = 0;       
+//adf_dev_struct.num_channels   // No Need - assigned in adf5355_init()
+adf_dev_struct.clkin_freq       = NULL;  // Come back
+//adf_dev_struct.max_out_freq   // No Need - assigned in adf5355_init()
+//adf_dev_struct.min_out_freq   // No Need - assigned in adf5355_init()
+//adf_dev_struct.min_vco_freq   // No Need - assigned in adf5355_init()
+//adf_dev_struct.fpfd           // No Need - assigned in adf5355_init()
+adf_dev_struct.integer          = 16;
+adf_dev_struct.fract1           = 4631210;
+adf_dev_struct.fract2           = 2;
+adf_dev_struct.mod2             = 3;
+adf_dev_struct.cp_ua            = 90;           
+adf_dev_struct.cp_neg_bleed_en  = true;
+adf_dev_struct.cp_gated_bleed_en = false;
+adf_dev_struct.cp_bleed_current_polarity_en ;
+adf_dev_struct.mute_till_lock_en;
+adf_dev_struct.outa_en;         = true;
+adf_dev_struct.outb_en;         = false;
+adf_dev_struct.outa_power       = 5;      
+adf_dev_struct.outb_power       = 0;
+adf_dev_struct.phase_detector_polarity_neg;
+adf_dev_struct.ref_diff_en;
+adf_dev_struct.mux_out_3v3_en;
+adf_dev_struct.outb_sel_fund;
+adf_dev_struct.ref_doubler_en;
+adf_dev_struct.ref_div2_en;
+//adf_dev_struct.rf_div_sel;       // No Need - assigned in adf5355_set_freq()
+//adf_dev_struct.ref_div_factor    // No Need - assigned in adf5355_setup()
+adf_dev_struct.mux_out_sel      = ADF5355_MUXOUT_DIGITAL_LOCK_DETECT;
+//adf_dev_struct.delay_us;         // No Need - assigned in adf5355_setup()
+
+*/
+
+#if 0
+/**
+ * @struct no_os_spi_init_param
+ * @brief Structure holding the parameters for SPI initialization
+ */
+struct no_os_spi_init_param {
+	/** Device ID */
+	uint32_t	device_id;
+	/** maximum transfer speed */
+	uint32_t	max_speed_hz;
+	/** SPI chip select */
+	uint8_t		chip_select;
+	/** SPI mode */
+	enum no_os_spi_mode	mode;
+	/** SPI bit order */
+	enum no_os_spi_bit_order	bit_order;
+	/** SPI Lanes */
+	enum no_os_spi_lanes   lanes;
+	/** SPI bus platform ops */
+	const struct no_os_spi_platform_ops *platform_ops;
+	/** SPI delays */
+	struct no_os_platform_spi_delays platform_delays;
+	/**  SPI extra parameters (device specific) */
+	void		*extra;
+	/** Parent of the device */
+	struct no_os_spi_desc *parent;
+};
+
+#endif 
+
+no_os_spi_init_param spi_params_struct;
+adf5355_init_param adf_init_struct;
+
+adf_init_struct.no_os_spi_init_param            = NULL;
+adf_init_struct.adf5355_device_id               = ADF5356;
+adf_init_struct.freq_req                        = 2000000000;
+adf_init_struct.freq_req_chan                   = 0;
+adf_init_struct.clkin_freq                      = 100000000;
+adf_init_struct.cp_ua                           = 90;
+adf_init_struct.cp_neg_bleed_en;                = true;
+adf_init_struct.cp_gated_bleed_en;              = false;
+adf_init_struct.cp_bleed_current_polarity_en    = false; // ?
+adf_init_struct.mute_till_lock_en;              = false;
+adf_init_struct.outa_en;                        = true;
+adf_init_struct.outb_en;                        = false;
+adf_init_struct.outa_power;                     = 5;
+adf_init_struct.outb_power;                     = 0;
+adf_init_struct.phase_detector_polarity_neg;    = false;
+adf_init_struct.ref_diff_en;                    = true;  // ?    
+adf_init_struct.mux_out_3v3_en                  = true;
+adf_init_struct.ref_doubler_en                  = false;
+adf_init_struct.ref_div2_en                     = true;                    
+adf_init_struct.mux_out_sel                     = ADF5355_MUXOUT_DIGITAL_LOCK_DETECT;
+adf_init_struct.outb_sel_fund                   = false;
+
 
 void setup() {
 
@@ -96,8 +196,10 @@ void setup() {
     while (!Serial) {} // Stuck in this loop until the Python script is run
 
     // TODO: Remove (dev functions)
-    print_json(config_doc);
-    Serial.println(sweep_config.sp8t_out_port);
+    //print_json(config_doc);
+    //Serial.println(sweep_config.sp8t_out_port);
+
+
 }
 
 // Main Loop structure:
@@ -178,15 +280,22 @@ status_t processCommand(const char* cmd, JsonVariant data) {
     else if(strcmp(cmd, "sweep") == 0) {
         const char *sweep_name = data.as<const char*>();
         cmd_status = SD_add_sweep(sweep_name);
+
+
+        /*
+
         
         // Placeholder for Config_t sweep_config struct
-        struct temp_data{
+        struct temp_data {
             uint8_t out_ports[] = {2, 3, 6, 7}; // SP8T ports, values range from 1-8
-            uint8_t in_ports[]  = {1, 4, 5}     // Log amp ports, values range from 1-10
+            uint8_t num_out_ports = 4;          // size of out_ports array
+            uint8_t in_ports[]  = {1, 4, 5};    // Log amp ports, values range from 1-10
+            uint8_t num_in_ports = 3;           // size of in_ports array
             uint32_t start      = 400;          // MHz     
             uint32_t stop       = 6000;         // MHz
             uint32_t step       = 100;          // MHz
         };
+        
 
         // Here's what the sweep function should look like. All of its arguments should be provided by
         //  the Config_t sweep_config struct.
@@ -212,6 +321,36 @@ status_t processCommand(const char* cmd, JsonVariant data) {
         //
         //              curr_freq += intvl
         //          
+        uint32_t curr_freq;
+
+        // Loops 8 times in the worst case
+        for (int i = 0; i < temp_data.num_out_ports; i ++) { 
+            curr_freq = temp_data.start;
+
+            // Loops ~ 150 times in the (very) worst case
+            while(curr_freq < temp_data.stop) {
+                // adf_out(curr_freq) // TODO: Write this function in the ADF driver
+                // delay() // TODO: Establish delay (if needed)
+                
+                // Loops 10 times in the worst case
+                for (int j = 0; j < temp_data.num_in_ports; j ++) {
+                    //int power = analogRead(log_amp(j)) // TODO: uint32_t for power? Dynamic selection of log amps based on index
+                    // power - cal_data // TODO: design cal system and cal struct
+                    // SD_add_sweep_data(power (V), SP8T_port, LogAmp_port, time_stamp)
+                    // Once done writing to SD, continue;
+                    continue;
+                }
+            }
+        }
+
+        // Worst case ~15,000 iterations of the above loop
+        // ~ (32 * 13) + 100 cycles overhead ~= 500 cycles to output a frequency
+        // stabilize delay ~ 1ms?
+        // write SD ~ 1ms?
+        // Teensy 4.1 executes ~ 1.4 IPC at 600 MHz 
+        //  - 1 Cycle ~= 1.66e-9 s (~1ns)
+        // Each loop iteration takes 3ms at the high end?
+        // 3ms * 15,000 ~= 1 min in the worst case
 
         // TODO: conduct sweep
         // 1) Enable correct sp8t port
@@ -220,6 +359,11 @@ status_t processCommand(const char* cmd, JsonVariant data) {
         //     b) Analog Read log-amp (measure signal)
         //     c) Record voltage (write to SD card sweep.csv)
         //sp8t_enablePort(sweep_config.sp8t_out_port); // 1)
+
+
+
+        */
+
 
         // for each freq in frequency_range:
         //   genFreq(freq);
@@ -283,7 +427,9 @@ Config_t update_config_struct(const JsonDocument& config) {
     return config_struct;
 }
 
-void conduct_sweep()
+void conduct_sweep() {
+
+}
 
 void print_json(const JsonDocument& doc) {
     serializeJsonPretty(doc, Serial);
