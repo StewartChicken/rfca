@@ -35,6 +35,9 @@
 #define _NO_OS_SPI_H_
 
 #include <stdint.h>
+#include "../Inc/no_os_spi.h"
+#include "../Inc/no_os_error.h"
+#include "../Inc/no_os_mutex.h"
 
 #define	NO_OS_SPI_CPHA	0x01
 #define	NO_OS_SPI_CPOL	0x02

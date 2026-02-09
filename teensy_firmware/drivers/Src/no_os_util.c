@@ -33,7 +33,7 @@
 
 #include <string.h>
 #include <stdlib.h>
-#include "no_os_util.h"
+#include "../Inc/no_os_util.h"
 #include "errno.h"
 extern int no_os_test_bit(int pos, const volatile void * addr);
 

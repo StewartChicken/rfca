@@ -64,6 +64,7 @@
 #include "./drivers/Inc/adf5355.h"
 #include "./drivers/Src/adf5355.c"
 
+
 Config_t sweep_config;
 
 // Variables to process incoming data
@@ -76,46 +77,65 @@ static size_t idx = 0;
 static status_t global_status = STATUS_OK;
 
 
+// Function declarations
+int32_t teensy_spi_init(struct no_os_spi_desc **desc, const struct no_os_spi_init_param *param);
+int32_t teensy_spi_write_and_read(struct no_os_spi_desc *desc, uint8_t *data, uint16_t bytes_number);
+int32_t teensy_spi_remove(struct no_os_spi_desc *desc);
 
-#if 0
-/**
- * @struct no_os_spi_init_param
- * @brief Structure holding the parameters for SPI initialization
- */
-struct no_os_spi_init_param {
-	/** Device ID */
-	uint32_t	device_id;
-	/** maximum transfer speed */
-	uint32_t	max_speed_hz;
-	/** SPI chip select */
-	uint8_t		chip_select;
-	/** SPI mode */
-	enum no_os_spi_mode	mode;
-	/** SPI bit order */
-	enum no_os_spi_bit_order	bit_order;
-	/** SPI Lanes */
-	enum no_os_spi_lanes   lanes;
-	/** SPI bus platform ops */
-	const struct no_os_spi_platform_ops *platform_ops;
-	/** SPI delays */
-	struct no_os_platform_spi_delays platform_delays;
-	/**  SPI extra parameters (device specific) */
-	void		*extra;
-	/** Parent of the device */
-	struct no_os_spi_desc *parent;
+// SPI config structs
+static struct no_os_spi_platform_ops teensy_spi_ops = {
+  .init = teensy_spi_init,
+  .write_and_read = teensy_spi_write_and_read,
+  .transfer = NULL,
+  .transfer_dma = NULL,
+  .transfer_dma_async = NULL,
+  .remove = teensy_spi_remove,
+  .transfer_abort = NULL
 };
 
-#endif 
+static struct no_os_spi_init_param spi_params = {
+  .device_id = 0,
+  .max_speed_hz = 1000000, // 1 MHz
+  .chip_select = 10,  // CS is pin 10
+  .mode = NO_OS_SPI_MODE_0,                   // DNU
+  .bit_order = NO_OS_SPI_BIT_ORDER_MSB_FIRST, // DNU
+  .lanes = NO_OS_SPI_SINGLE_LANE,
+  .platform_ops = &teensy_spi_ops,
+  .platform_delays = {0},
+  .extra = NULL,
+  .parent = NULL
+};
 
-// These three structures are used to configure the ADF5355/6 driver.
-// no_os_spi_init_param configures the spi communication 
-// adf5355_dev_struct is not modified by the dev; used by the driver to retain a copy of the register state
-// adf5355_init_param is modified by the dev to initialize the ADF5355
-struct no_os_spi_init_param spi_params_struct;
-struct adf5355_dev adf_dev_struct;            
-struct adf5355_init_param adf_init_struct;    
+static struct no_os_spi_desc *spi_desc;
 
 
+static struct adf5355_init_param adf_init_params = {
+    .spi_init       = &spi_params,
+    .dev_id         = ADF5356,
+    .freq_req       = 2000000000ULL, // Desired output frequency in Hz
+    .freq_req_chan  = 0,    // 0 for RFOUTA, 1 for RFOUTB
+    .clkin_freq     = 122880000, // Reference frequency in Hz
+    .cp_ua          = 900, // ? Why not 90?
+    .cp_neg_bleed_en   = true,
+    .cp_gated_bleed_en = false,
+    .cp_bleed_current_polarity_en = false, // ? What dis do?
+    .mute_till_lock_en = false,
+    .outa_en           = true,
+    .outb_en           = false,
+    .outa_power        = 3,   // ? Why not 5? Expects 0-3?
+    .outb_power        = 0,
+    .phase_detector_polarity_neg = false,
+    .ref_diff_en = true,   // ? Why not false?    
+    .mux_out_3v3_en = true,
+    .ref_doubler_en = false,
+    .ref_div2_en    = true,
+    .mux_out_sel = ADF5355_MUXOUT_DIGITAL_LOCK_DETECT,
+    .outb_sel_fund = false
+ 
+};
+
+static struct adf5355_dev *adf_dev_struct;            
+  
 
 void setup() {
 
@@ -133,20 +153,24 @@ void setup() {
     global_status = SD_get_config(config_doc);
     sweep_config = update_config_struct(config_doc);
 
-    config_adf_init_struct(&adf_init_struct); // Populates struct with default values
+    //config_adf_init_struct(&adf_init_struct); // Populates struct with default values
     
     
     
     // Open Serial communication (USB-CDC for Teensy 4.1) after peripheral initialization
     // Wait for host to run Python script
-    Serial.begin(9600); // Baud is irrelevant for USB-CDC
+    Serial.begin(115200); // Baud is irrelevant for USB-CDC
     while (!Serial) {} // Stuck in this loop until the Python script is run
 
     // TODO: Remove (dev functions)
     //print_json(config_doc);
     //Serial.println(sweep_config.sp8t_out_port);
 
-
+    Serial.println("Serial communication established. ");
+    
+    Serial.println("Initializing ADF5356...");
+    int32_t ret = adf5355_init(&adf_dev_struct, &adf_init_params);
+    
 }
 
 // Main Loop structure:
@@ -380,7 +404,7 @@ void config_adf_init_struct(adf5355_init_param *init_struct) {
     init_struct->dev_id               = ADF5356; 
 
     // Signal config
-    init_struct->freq_req                        = 2000000000ULL; // Desired output frequency in Haz.
+    init_struct->freq_req                        = 2000000000ULL; // Desired output frequency in Hz.
     init_struct->freq_req_chan                   = 0;          // 0 for RFOUTA, 1 for RFOUTB
     init_struct->clkin_freq                      = 122880000;  // Reference frequency in Hz
     init_struct->ref_doubler_en                  = false;
@@ -413,4 +437,119 @@ void conduct_sweep() {
 void print_json(const JsonDocument& doc) {
     serializeJsonPretty(doc, Serial);
     Serial.println();
+}
+
+
+
+/**
+ * @brief Initialize the SPI communication peripheral.
+ * @param desc - The SPI descriptor.
+ * @param param - The structure that contains the SPI parameters.
+ * @return 0 in case of success, -1 otherwise.
+ */
+int32_t teensy_spi_init(struct no_os_spi_desc **desc, const struct no_os_spi_init_param *param) {
+
+  Serial.println("Entered the teensy_spi_init() function!");
+  // Steps:
+  // 1. Begin SPI
+  // 2. Allocate *desc
+  // 3. Transfer params to *desc
+  // 4. Config Chip Select pin
+  // 5. return
+
+  if (!desc || !param) return -1;
+
+  // Begin Teensy4.1 SPI0
+  SPI.begin();
+
+  // Allocate desc
+  struct no_os_spi_desc *local_desc;
+  local_desc = (struct no_os_spi_desc *)no_os_calloc(1, sizeof(*local_desc));
+  if (!local_desc)
+    return -1;
+
+  local_desc->device_id       = param->device_id;
+  local_desc->max_speed_hz    = param->max_speed_hz;
+  local_desc->chip_select     = param->chip_select;
+  local_desc->mode            = param->mode;
+  local_desc->bit_order       = param->bit_order;
+  local_desc->lanes           = param->lanes;
+  local_desc->extra           = param->extra;
+
+  pinMode(local_desc->chip_select, OUTPUT);
+  digitalWrite(local_desc->chip_select, LOW); // Idles in the low state
+
+  *desc = local_desc;
+
+  // 0 = OK status
+  return 0;
+}
+
+/**
+ * @brief Write and read data to/from SPI.
+ * @param desc - The SPI descriptor.
+ * @param data - The buffer with the transmitted/received data.
+ * @param bytes_number - Number of bytes to write/read.
+ * @return 0 in case of success, -1 otherwise.
+ */
+int32_t teensy_spi_write_and_read(struct no_os_spi_desc *desc, uint8_t *data, uint16_t bytes_number) {
+
+  // Steps:
+  // 1. Begin SPI transaction
+  // 2. Assert CS LOW
+  // 3. Transfer Data
+  // 4. Assert CS HIGH
+  // 5. End SPI Transaction
+
+  if (!desc || !data || bytes_number == 0) return -1;
+
+  // TODO: Globally define?
+  SPISettings spiSettings(
+    1000000,      // 1 MHz SPI clock
+    MSBFIRST,     // Bit order
+    SPI_MODE0     // CPOL=0, CPHA=0
+  );
+
+  /*
+  // Using desc:
+  SPISettings spiSettings(
+    desc->max_speed_hz,      // 1 MHz SPI clock
+    desc->bit_order,         // Bit order
+    desc->mode               // CPOL=0, CPHA=0
+  );
+  */
+
+  SPI.beginTransaction(spiSettings);
+
+  /*
+  for(int i = 0; i < bytes_number; i ++) {
+    SPI.transfer(data[i]);
+  }
+    */
+  SPI.transfer(data, bytes_number);   // in-place buffer
+
+  SPI.endTransaction();
+
+  digitalWrite(desc->chip_select, HIGH); // Latch data in ADF5356 Shift Register
+  delayMicroseconds(2);
+  digitalWrite(desc->chip_select, LOW);
+
+  // 0 = OK status
+  return 0;
+}
+
+/**
+ * @brief Free the resources allocated by no_os_spi_init().
+ * @param desc - The SPI descriptor.
+ * @return 0 in case of success, -1 otherwise.
+ */
+int32_t teensy_spi_remove(struct no_os_spi_desc *desc) {
+
+  if (!desc) return -1;
+
+  digitalWrite(desc->chip_select, HIGH);
+  no_os_free(desc);
+
+  // 0 = OK status
+  return 0;
 }

@@ -34,10 +34,16 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <malloc.h>
-#include "../Inc/no_os_error.h"
 #include "../Inc/no_os_delay.h"
+#include "../Src/generic_delay.c"
 #include "../Inc/no_os_util.h"
+#include "../Src/no_os_util.c"
 #include "../Inc/no_os_alloc.h"
+#include "../Src/no_os_alloc.c"
+#include "../Inc/no_os_spi.h"
+#include "../Src/no_os_spi.c"
+
+
 #include "../Inc/adf5355.h"
 
 /**

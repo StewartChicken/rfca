@@ -32,11 +32,8 @@
 *******************************************************************************/
 
 #include <inttypes.h>
-#include "no_os_spi.h"
 #include <stdlib.h>
-#include "no_os_error.h"
-#include "no_os_mutex.h"
-#include "no_os_alloc.h"
+#include "../Src/no_os_mutex.c"
 
 /**
  * @brief spi_table contains the pointers towards the SPI buses

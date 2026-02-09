@@ -31,8 +31,8 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *******************************************************************************/
 
-#include "no_os_mutex.h"
-#include "no_os_util.h"
+#include "../Inc/no_os_mutex.h"
+#include "../Inc/no_os_util.h"
 
 /**
  * @brief Initialize mutex.
