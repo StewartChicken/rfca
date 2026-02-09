@@ -106,7 +106,7 @@ static struct no_os_spi_init_param spi_params = {
   .parent = NULL
 };
 
-static struct no_os_spi_desc *spi_desc;
+//static struct no_os_spi_desc *spi_desc;
 
 
 static struct adf5355_init_param adf_init_params = {
@@ -396,38 +396,6 @@ Config_t update_config_struct(const JsonDocument& config) {
     config_struct.sp8t_out_port = config["sp8t_out_port"];
 
     return config_struct;
-}
-
-// TODO: Define values in common_defs.h ? They're all hardcoded for now
-void config_adf_init_struct(adf5355_init_param *init_struct) {
-    init_struct->spi_init            = NULL;       // For SPI communication
-    init_struct->dev_id               = ADF5356; 
-
-    // Signal config
-    init_struct->freq_req                        = 2000000000ULL; // Desired output frequency in Hz.
-    init_struct->freq_req_chan                   = 0;          // 0 for RFOUTA, 1 for RFOUTB
-    init_struct->clkin_freq                      = 122880000;  // Reference frequency in Hz
-    init_struct->ref_doubler_en                  = false;
-    init_struct->ref_div2_en                     = true; 
-
-    // Reg 6
-    init_struct->cp_ua                           = 900; // ? Why not 90?
-    init_struct->cp_neg_bleed_en                = true;
-    init_struct->cp_gated_bleed_en              = false;
-    init_struct->cp_bleed_current_polarity_en    = false; // ? What dis do?
-
-    init_struct->mute_till_lock_en              = false;
-    init_struct->outa_en                        = true;
-    init_struct->outb_en                        = false;
-    init_struct->outa_power                     = 3; // ? Why not 5? Expects 0-3?
-    init_struct->outb_power                     = 0;
-
-    init_struct->phase_detector_polarity_neg    = false;
-    init_struct->ref_diff_en                    = true;  // ? Why not false?    
-    init_struct->mux_out_3v3_en                  = true;
-                    
-    init_struct->mux_out_sel                     = ADF5355_MUXOUT_DIGITAL_LOCK_DETECT;
-    init_struct->outb_sel_fund                   = false;
 }
 
 void conduct_sweep() {
