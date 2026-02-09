@@ -75,47 +75,7 @@ static size_t idx = 0;
 // Main loop error handling. This is the status which is communicated to the Python Host
 static status_t global_status = STATUS_OK;
 
-adf5355_dev adf_dev_struct;
 
-/*
-
-adf_dev_struct.spi_desc         = NULL;  // Come back
-adf_dev_struct.dev_id           = ADF5356;
-//adf_dev_struct.all_synced     // No Need - assigned in adf5355_setup()
-//adf_dev_struct.regs = {0};    // No Need - assigned in adf5355_setup()
-//adf_dev_struct.freq_req       // No Need - assigned in adf5355_set_freq()
-adf_dev_struct.freq_req_chan    = 0;       
-//adf_dev_struct.num_channels   // No Need - assigned in adf5355_init()
-adf_dev_struct.clkin_freq       = NULL;  // Come back
-//adf_dev_struct.max_out_freq   // No Need - assigned in adf5355_init()
-//adf_dev_struct.min_out_freq   // No Need - assigned in adf5355_init()
-//adf_dev_struct.min_vco_freq   // No Need - assigned in adf5355_init()
-//adf_dev_struct.fpfd           // No Need - assigned in adf5355_init()
-adf_dev_struct.integer          = 16;
-adf_dev_struct.fract1           = 4631210;
-adf_dev_struct.fract2           = 2;
-adf_dev_struct.mod2             = 3;
-adf_dev_struct.cp_ua            = 90;           
-adf_dev_struct.cp_neg_bleed_en  = true;
-adf_dev_struct.cp_gated_bleed_en = false;
-adf_dev_struct.cp_bleed_current_polarity_en ;
-adf_dev_struct.mute_till_lock_en;
-adf_dev_struct.outa_en;         = true;
-adf_dev_struct.outb_en;         = false;
-adf_dev_struct.outa_power       = 5;      
-adf_dev_struct.outb_power       = 0;
-adf_dev_struct.phase_detector_polarity_neg;
-adf_dev_struct.ref_diff_en;
-adf_dev_struct.mux_out_3v3_en;
-adf_dev_struct.outb_sel_fund;
-adf_dev_struct.ref_doubler_en;
-adf_dev_struct.ref_div2_en;
-//adf_dev_struct.rf_div_sel;       // No Need - assigned in adf5355_set_freq()
-//adf_dev_struct.ref_div_factor    // No Need - assigned in adf5355_setup()
-adf_dev_struct.mux_out_sel      = ADF5355_MUXOUT_DIGITAL_LOCK_DETECT;
-//adf_dev_struct.delay_us;         // No Need - assigned in adf5355_setup()
-
-*/
 
 #if 0
 /**
@@ -147,30 +107,14 @@ struct no_os_spi_init_param {
 
 #endif 
 
-no_os_spi_init_param spi_params_struct;
-adf5355_init_param adf_init_struct;
+// These three structures are used to configure the ADF5355/6 driver.
+// no_os_spi_init_param configures the spi communication 
+// adf5355_dev_struct is not modified by the dev; used by the driver to retain a copy of the register state
+// adf5355_init_param is modified by the dev to initialize the ADF5355
+struct no_os_spi_init_param spi_params_struct;
+struct adf5355_dev adf_dev_struct;            
+struct adf5355_init_param adf_init_struct;    
 
-adf_init_struct.no_os_spi_init_param            = NULL;
-adf_init_struct.adf5355_device_id               = ADF5356;
-adf_init_struct.freq_req                        = 2000000000;
-adf_init_struct.freq_req_chan                   = 0;
-adf_init_struct.clkin_freq                      = 100000000;
-adf_init_struct.cp_ua                           = 90;
-adf_init_struct.cp_neg_bleed_en;                = true;
-adf_init_struct.cp_gated_bleed_en;              = false;
-adf_init_struct.cp_bleed_current_polarity_en    = false; // ?
-adf_init_struct.mute_till_lock_en;              = false;
-adf_init_struct.outa_en;                        = true;
-adf_init_struct.outb_en;                        = false;
-adf_init_struct.outa_power;                     = 5;
-adf_init_struct.outb_power;                     = 0;
-adf_init_struct.phase_detector_polarity_neg;    = false;
-adf_init_struct.ref_diff_en;                    = true;  // ?    
-adf_init_struct.mux_out_3v3_en                  = true;
-adf_init_struct.ref_doubler_en                  = false;
-adf_init_struct.ref_div2_en                     = true;                    
-adf_init_struct.mux_out_sel                     = ADF5355_MUXOUT_DIGITAL_LOCK_DETECT;
-adf_init_struct.outb_sel_fund                   = false;
 
 
 void setup() {
@@ -189,6 +133,9 @@ void setup() {
     global_status = SD_get_config(config_doc);
     sweep_config = update_config_struct(config_doc);
 
+    config_adf_init_struct(&adf_init_struct); // Populates struct with default values
+    
+    
     
     // Open Serial communication (USB-CDC for Teensy 4.1) after peripheral initialization
     // Wait for host to run Python script
@@ -425,6 +372,38 @@ Config_t update_config_struct(const JsonDocument& config) {
     config_struct.sp8t_out_port = config["sp8t_out_port"];
 
     return config_struct;
+}
+
+// TODO: Define values in common_defs.h ? They're all hardcoded for now
+void config_adf_init_struct(adf5355_init_param *init_struct) {
+    init_struct->spi_init            = NULL;       // For SPI communication
+    init_struct->dev_id               = ADF5356; 
+
+    // Signal config
+    init_struct->freq_req                        = 2000000000ULL; // Desired output frequency in Haz.
+    init_struct->freq_req_chan                   = 0;          // 0 for RFOUTA, 1 for RFOUTB
+    init_struct->clkin_freq                      = 122880000;  // Reference frequency in Hz
+    init_struct->ref_doubler_en                  = false;
+    init_struct->ref_div2_en                     = true; 
+
+    // Reg 6
+    init_struct->cp_ua                           = 900; // ? Why not 90?
+    init_struct->cp_neg_bleed_en                = true;
+    init_struct->cp_gated_bleed_en              = false;
+    init_struct->cp_bleed_current_polarity_en    = false; // ? What dis do?
+
+    init_struct->mute_till_lock_en              = false;
+    init_struct->outa_en                        = true;
+    init_struct->outb_en                        = false;
+    init_struct->outa_power                     = 3; // ? Why not 5? Expects 0-3?
+    init_struct->outb_power                     = 0;
+
+    init_struct->phase_detector_polarity_neg    = false;
+    init_struct->ref_diff_en                    = true;  // ? Why not false?    
+    init_struct->mux_out_3v3_en                  = true;
+                    
+    init_struct->mux_out_sel                     = ADF5355_MUXOUT_DIGITAL_LOCK_DETECT;
+    init_struct->outb_sel_fund                   = false;
 }
 
 void conduct_sweep() {
