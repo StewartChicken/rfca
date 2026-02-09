@@ -84,53 +84,53 @@ int32_t teensy_spi_remove(struct no_os_spi_desc *desc);
 
 // SPI config structs
 static struct no_os_spi_platform_ops teensy_spi_ops = {
-  .init = teensy_spi_init,
-  .write_and_read = teensy_spi_write_and_read,
-  .transfer = NULL,
-  .transfer_dma = NULL,
-  .transfer_dma_async = NULL,
-  .remove = teensy_spi_remove,
-  .transfer_abort = NULL
+  .init                             = teensy_spi_init,
+  .write_and_read                   = teensy_spi_write_and_read,
+  .transfer                         = NULL,
+  .transfer_dma                     = NULL,
+  .transfer_dma_async               = NULL,
+  .remove                           = teensy_spi_remove,
+  .transfer_abort                   = NULL
 };
 
 static struct no_os_spi_init_param spi_params = {
-  .device_id = 0,
-  .max_speed_hz = 1000000, // 1 MHz
-  .chip_select = 10,  // CS is pin 10
-  .mode = NO_OS_SPI_MODE_0,                   // DNU
-  .bit_order = NO_OS_SPI_BIT_ORDER_MSB_FIRST, // DNU
-  .lanes = NO_OS_SPI_SINGLE_LANE,
-  .platform_ops = &teensy_spi_ops,
-  .platform_delays = {0},
-  .extra = NULL,
-  .parent = NULL
+  .device_id                        = 0,
+  .max_speed_hz                     = 1000000, // 1 MHz
+  .chip_select                      = 10,  // CS is pin 10
+  .mode                             = NO_OS_SPI_MODE_0,                   // DNU
+  .bit_order                        = NO_OS_SPI_BIT_ORDER_MSB_FIRST, // DNU
+  .lanes                            = NO_OS_SPI_SINGLE_LANE,
+  .platform_ops                     = &teensy_spi_ops,
+  .platform_delays                  = {0},
+  .extra                            = NULL,
+  .parent                           = NULL
 };
 
 //static struct no_os_spi_desc *spi_desc;
 
 
 static struct adf5355_init_param adf_init_params = {
-    .spi_init       = &spi_params,
-    .dev_id         = ADF5356,
-    .freq_req       = 2000000000ULL, // Desired output frequency in Hz
-    .freq_req_chan  = 0,    // 0 for RFOUTA, 1 for RFOUTB
-    .clkin_freq     = 122880000, // Reference frequency in Hz
-    .cp_ua          = 900, // ? Why not 90?
-    .cp_neg_bleed_en   = true,
-    .cp_gated_bleed_en = false,
-    .cp_bleed_current_polarity_en = false, // ? What dis do?
-    .mute_till_lock_en = false,
-    .outa_en           = true,
-    .outb_en           = false,
-    .outa_power        = 3,   // ? Why not 5? Expects 0-3?
-    .outb_power        = 0,
-    .phase_detector_polarity_neg = false,
-    .ref_diff_en = true,   // ? Why not false?    
-    .mux_out_3v3_en = true,
-    .ref_doubler_en = false,
-    .ref_div2_en    = true,
-    .mux_out_sel = ADF5355_MUXOUT_DIGITAL_LOCK_DETECT,
-    .outb_sel_fund = false
+    .spi_init                       = &spi_params,
+    .dev_id                         = ADF5356,
+    .freq_req                       = 2000000000ULL, // Desired output frequency in Hz
+    .freq_req_chan                  = 0,    // 0 for RFOUTA, 1 for RFOUTB
+    .clkin_freq                     = 122880000, // Reference frequency in Hz
+    .cp_ua                          = 900, // ? Why not 90?
+    .cp_neg_bleed_en                = true,
+    .cp_gated_bleed_en              = false,
+    .cp_bleed_current_polarity_en   = false, // ? What dis do?
+    .mute_till_lock_en              = false,
+    .outa_en                        = true,
+    .outb_en                        = false,
+    .outa_power                     = 3,   // ? Why not 5? Expects 0-3?
+    .outb_power                     = 0,
+    .phase_detector_polarity_neg    = false,
+    .ref_diff_en                    = true,   // ? Why not false?    
+    .mux_out_3v3_en                 = true,
+    .ref_doubler_en                 = false,
+    .ref_div2_en                    = true,
+    .mux_out_sel                    = ADF5355_MUXOUT_DIGITAL_LOCK_DETECT,
+    .outb_sel_fund                  = false
  
 };
 
