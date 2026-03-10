@@ -265,15 +265,34 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
       Serial.println(freq);
 #endif
       ADF_write_freq(freq);
+      delay(500);
 
-      float raw = analogRead(LOG_AMP_0);
-      float voltage = (raw * (float)ADC_REF_VOLTAGE) / (float)ADC_MAX_VALUE; // Convert raw ADC value to voltage (V)
+      // Slope and Intercept depend on frequency
+      float slope = 0.00434*pow(((float)freq / 1000.0), 3) - 0.0441*pow(((float)freq / 1000.0), 2) + 0.123*((float)freq / 1000.0) + 18.6;
+      float intercept = -0.0153*pow(((float)freq / 1000.0), 3) + 0.209*pow(((float)freq / 1000.0), 2) - 1.21*((float)freq / 1000.0) - 61.8;
 
-      float slope = 0.00434pow(((float)freq / 1000.0), 3) - 0.0441pow(((float)freq / 1000.0), 2) + 0.123((float)freq / 1000.0) + 18.6;
-      float intercept = -0.0153pow(((float)freq / 1000.0), 3) + 0.209pow(((float)freq / 1000.0), 2) - 1.21((float)freq / 1000.0) - 61.8;
-      float power = (voltage * 1000.0) / slope + intercept;
+      float total_power = 0;
+      const uint16_t WINDOW = 200;
+      for(int i = 0; i < WINDOW; i ++) {
+        float raw = analogRead(LOG_AMP_0);
+        float voltage = (raw * (float)ADC_REF_VOLTAGE) / (float)ADC_MAX_VALUE; // Convert raw ADC value to voltage (V)
+
+        // Power (dB) = (Measured Voltage (mV) / Slope) + Intercept
+        // ^^^ This comes from the ADL5507 Log-Ammp datasheet
+        float power = (voltage * 1000.0) / slope + intercept;
+
+        total_power += power;
+      }
+
+      total_power /= (float)WINDOW;
 
 #if ENABLE_DEBUG_PRINTS
+      Serial.print("Average power: ");
+      Serial.println(total_power);
+#endif
+
+//#if ENABLE_DEBUG_PRINTS
+#if 0
       Serial.print("Raw reading: ");
       Serial.println(raw);
       Serial.print("Voltage: ");

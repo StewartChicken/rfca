@@ -51,7 +51,7 @@ static const uint8_t log_amp_pins[10] = {
 
 // LogAmp Config
 #define NUM_LOG_AMPS                10
-#define LOG_AMP_READ_DELAY          10 // ms
+#define LOG_AMP_READ_DELAY          10   // ms
 #define ADC_REF_VOLTAGE             3.3  // Teensy uses a 3.3 V reference for analog inputs
 #define ADC_MAX_VALUE               1023 // default 10-bit resolution
 
@@ -63,7 +63,7 @@ static const uint8_t log_amp_pins[10] = {
 
 
 // DEBUG (dev)
-#define ENABLE_DEBUG_PRINTS 0 // This needs to be 0 when using the CLI to communicate with the Teensy
+#define ENABLE_DEBUG_PRINTS 1 // This needs to be 0 when using the CLI to communicate with the Teensy
 
 typedef enum {
     UNDEF_PORT  = -1,
@@ -80,10 +80,10 @@ typedef enum {
 // Data Structures
 typedef struct {
     sp8t_port_t sp8t_out_ports[8];  // 1-8, inclusive
-    uint32_t start_freq;        // MHz
-    uint32_t stop_freq;         //  MHz
-    uint32_t step_size;         // MHz
-    uint32_t delay_ms;          // ms
+    uint32_t start_freq;            // MHz
+    uint32_t stop_freq;             //  MHz
+    uint32_t step_size;             // MHz
+    uint32_t delay_ms;              // ms
 } Config_t;
 
 // TODO: make this (maybe just make it a 2D array? uint32_t loss[8][10], 8 sp8t for 10 log amp, 80 total values)
