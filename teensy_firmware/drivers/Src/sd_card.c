@@ -3,6 +3,12 @@
 #include <SD.h>
 #include "../Inc/sd_card.h"
 
+/**
+ * @brief Init Teensy 4.1 SDIO for SD card
+          Check for existence of config file and data directory
+          If DNE, create
+ * @return: status_t
+ */
 status_t SD_init() {
   status_t SD_status = STATUS_OK;
 
@@ -23,10 +29,19 @@ status_t SD_init() {
   return SD_status;
 }
 
+/**
+ * @brief Check if the config file exists
+ * @return: bool
+ */
 bool SD_does_config_exist() {
     return SD.exists(CONFIG_PATH);
 }
 
+/**
+ * @brief Create the config file with default values
+ * @return: status_t
+ * TODO: Set up default values, it creates an empty config for now
+ */
 status_t SD_init_default_config() {
     File cfg;
     size_t bytes_written = 0; // For error handling
@@ -48,11 +63,21 @@ status_t SD_init_default_config() {
   return STATUS_OK;
 }
 
-bool SD_does_data_dir_exist(void) {
+/**
+ * @brief Check if the data directory exists
+ * @return: bool
+ * TODO: Error handling
+ */
+bool SD_does_data_dir_exist() {
   return SD.exists(DATA_PATH);
 }
 
-status_t SD_init_data_dir(void) {
+/**
+ * @brief Create the data directory (empty)
+ * @return: status_t
+ * TODO: Error handling
+ */
+status_t SD_init_data_dir() {
 
   if(!SD.mkdir(DATA_PATH)) {
     return STATUS_ERR_SD_DIR_CREATE_FAIL;
@@ -61,6 +86,12 @@ status_t SD_init_data_dir(void) {
   return STATUS_OK;
 }
 
+/**
+ * @brief Given a config JSON file, store it on the SD card
+ * @param cfg - File to write to SD
+ * @return: status_t
+ * TODO: Error handling
+ */
 status_t SD_update_config(const JsonObject& cfg) {
   File f;
   size_t bytes_written;
@@ -82,28 +113,84 @@ status_t SD_update_config(const JsonObject& cfg) {
   return STATUS_OK;
 }
 
+/**
+ * @brief Add a new sweep to the SD card
+ * @param sweep_name - sweep to create
+ * @return: status_t
+ * TODO: Error handling
+ *       Create a .csv file, not just an arbitrary sweep file
+ */
 status_t SD_add_sweep(const char* sweep_name) {
     char file_path[256]; // Max length of file path is 256 bytes = 256 characters
-    int n = snprintf(file_path, sizeof(file_path), "%s/%s", DATA_PATH, sweep_name);
 
-    File f;
-
-    // TODO: Classify this
+    // Create "<DATA_PATH>/<sweep_name>.csv"
+    int n = snprintf(file_path, sizeof(file_path), "%s/%s.csv", DATA_PATH, sweep_name);
     if (n <= 0 || n >= (int)sizeof(file_path))
         return STATUS_ERR_UNKNOWN;
 
-    f = SD.open(file_path, FILE_WRITE);
-    if(!f) {
-        return STATUS_ERR_SD_OPEN_FAIL;
-    }
+    // Recreate file fresh (avoid appending to an existing sweep)
+    // TODO: Handle existing file
+    SD.remove(file_path);
 
+    File f = SD.open(file_path, FILE_WRITE);
+    if(!f) 
+        return STATUS_ERR_SD_OPEN_FAIL;
+
+    // 10 blank columns (10 voltage readings)
+    size_t bytes_written = f.println("out_port,frequency,LA0,LA1,LA2,LA3,LA4,LA5,LA6,LA7,LA8,LA9");
     f.flush();
     f.close();
+
+    if (bytes_written == 0)
+      return STATUS_ERR_SD_WRITE_FAIL;
 
     return STATUS_OK;
 }
 
-// TODO: Redesign; not compatible with current error handling system
+/**
+ * @brief Append a row of measured data to the specified sweep
+ * @param sweep_name - sweep to append data to
+ * @param data       - array of 10 voltage values to append
+ * @return: status_t
+ * TODO: Error handling
+ * TODO: Check floating point precision
+ */
+status_t SD_add_data(const char* sweep_name, const float data[12]) {
+  char file_path[256];
+
+  // Build "<DATA_PATH>/<sweep_name>.csv"
+  int n = snprintf(file_path, sizeof(file_path), "%s/%s.csv", DATA_PATH, sweep_name);
+  if (n <= 0 || n >= (int)sizeof(file_path))
+      return STATUS_ERR_UNKNOWN;
+
+  File f = SD.open(file_path, FILE_WRITE);
+  if (!f)
+      return STATUS_ERR_SD_OPEN_FAIL;
+
+  // Append one CSV row: v0,v1,...,v9\n
+  // Use enough precision for voltages; adjust digits if you want.
+  size_t bytes_written = 0;
+  for (int i = 0; i < 12; i++) {
+      if (i > 0) bytes_written += f.print(',');
+      bytes_written += f.print(data[i], 6);   // 6 digits after decimal
+  }
+  bytes_written += f.print('\n');
+
+  f.flush();
+  f.close();
+
+  if (bytes_written == 0)
+      return STATUS_ERR_SD_WRITE_FAIL;
+
+  return STATUS_OK;  
+}
+
+/**
+ * @brief Delete a sweep off the SD card
+ * @param sweep_name - sweep to delete
+ * @return: status_t
+ * TODO: Error handling
+ */
 status_t SD_delete_sweep(const char* sweep_name)
 {
   // Used for error handling
@@ -114,7 +201,6 @@ status_t SD_delete_sweep(const char* sweep_name)
 
   if (n <= 0 || n >= (int)sizeof(file_path)) {
     // truncated or formatting error
-    // TODO: Categorize error
     return STATUS_ERR_UNKNOWN;
   }
 
@@ -126,8 +212,6 @@ status_t SD_delete_sweep(const char* sweep_name)
   f.flush();
   f.close();
 
-  Serial.println(file_path);
-
   success = SD.remove(file_path);
   if(!success){
     return STATUS_ERR_SD_REMOVE_FAIL;
@@ -136,7 +220,12 @@ status_t SD_delete_sweep(const char* sweep_name)
   return STATUS_OK;
 }
 
-// Reads config.json on SD card and returns a JsonDocument containing its data
+/**
+ * @brief Reads config from SD card and copies to the argument
+ * @param doc - Receives the SD data
+ * @return: status_t
+ * TODO: Error handling
+ */
 status_t SD_get_config(JsonDocument& doc) {
    
   File config = SD.open(CONFIG_PATH, FILE_READ);
@@ -153,8 +242,16 @@ status_t SD_get_config(JsonDocument& doc) {
   return STATUS_OK;
 }
 
-// TODO: Refactor (I don't like the hard-coded 64-byte size)
-status_t SD_get_filenames(char filenames[][64], const uint8_t maxFiles, uint8_t* file_count)
+/**
+ * @brief Returns the list of data files on the SD card
+ * @param filenames - Where the list of names will be stored (64 max)
+ * @param maxFiles - Most files to return
+ * @param file_count - Num files returned
+ * @return: status_t
+ * TODO: Error handling
+         Refactor (I don't like the hard-coded 64-byte size)
+ */ 
+status_t SD_get_filenames(char filenames[][64], const uint8_t maxFiles, uint8_t *file_count)
 {
   *file_count = 0;
 

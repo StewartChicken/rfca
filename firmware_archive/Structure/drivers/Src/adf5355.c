@@ -38,8 +38,6 @@
 #include "../Src/generic_delay.c"
 #include "../Inc/no_os_util.h"
 #include "../Src/no_os_util.c"
-#include "../Inc/no_os_alloc.h"
-#include "../Src/no_os_alloc.c"
 #include "../Inc/no_os_spi.h"
 #include "../Src/no_os_spi.c"
 
@@ -68,6 +66,22 @@ static int32_t adf5355_write(struct adf5355_dev *dev,
 	buf[1] = data >> 16;
 	buf[2] = data >> 8;
 	buf[3] = data;
+
+	// Print Header
+    Serial.print("Writing to register R");
+	Serial.print(reg_addr);
+	Serial.print(": ");
+	if (reg_addr < 10) Serial.print(" ");
+	Serial.print("0x");
+
+	// Print Data
+	for (size_t i = 0; i < NO_OS_ARRAY_SIZE(buf); i++) {
+        if (buf[i] < 0x10) Serial.print("0");
+        Serial.print(buf[i], HEX);
+        //Serial.print(" ");
+    }
+    Serial.println();
+    
 
 	return no_os_spi_write_and_read(dev->spi_desc, buf, NO_OS_ARRAY_SIZE(buf));
 }

@@ -29,6 +29,7 @@ status_t SD_init_data_dir(void);
 // Update functions
 status_t SD_update_config(const JsonObject& doc);
 status_t SD_add_sweep(const char*); // Sweep name
+status_t SD_add_data(const char*, const float data[12]);
 status_t SD_delete_sweep(const char*);
 // TODO: void SD_add_sweep_data(uint32_t, uint32_t); // Time interval, Voltage
 
@@ -36,6 +37,5 @@ status_t SD_delete_sweep(const char*);
 status_t SD_get_config(JsonDocument& doc);
 
 status_t SD_get_filenames(char filenames[][64], const uint8_t maxFiles, uint8_t* file_count); // TODO: refactor
-
 
 #endif // _SD_INTERFACE_H

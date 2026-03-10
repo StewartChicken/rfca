@@ -5,6 +5,15 @@
 // ===========================
 // ===== Pin Definitions =====
 
+// ADF5356
+#define ADF_LE                      10 // CS pin (repurposed)
+#define ADF_DATA                    11 // MOSI for SPI
+#define ADF_MISO                    12 // Not Used (Registers are write only)
+#define ADF_CLK                     13 
+
+// SD card
+#define SD_CS                       BUILTIN_SDCARD  // For Teensy 4.1 SDIO slot
+
 // Log amp
 #define LOG_AMP_0                   A0
 #define LOG_AMP_1                   A1
@@ -17,54 +26,64 @@
 #define LOG_AMP_8                   A8
 #define LOG_AMP_9                   A9
 
+static const uint8_t log_amp_pins[10] = {
+    LOG_AMP_0,
+    LOG_AMP_1,
+    LOG_AMP_2,
+    LOG_AMP_3,
+    LOG_AMP_4,
+    LOG_AMP_5,
+    LOG_AMP_6,
+    LOG_AMP_7,
+    LOG_AMP_8,
+    LOG_AMP_9
+};
+
 // SP8T
-#define PIN_ENABLE                  2
-#define PIN_LS                      3
-#define PIN_V3                      4
-#define PIN_V2                      5
-#define PIN_V1                      6 
+#define SP8T_PIN_ENABLE             2
+#define SP8T_PIN_LS                 3
+#define SP8T_PIN_V3                 4
+#define SP8T_PIN_V2                 5
+#define SP8T_PIN_V1                 6 
 
-// SD card
-#define SD_CS                       BUILTIN_SDCARD  // For Teensy 4.1 SDIO slot
-
-// ADF5356
-#define ADF_LE                      10 // CS pin (repurposed)
-#define ADF_DATA                    11 // MOSI for SPI
-#define ADF_MISO                    12 // Not Used (Grounded)
-#define ADF_CLK                     13 
-
+// === End Pin Definitions ===
 // ===========================
 
 // LogAmp Config
+#define NUM_LOG_AMPS                10
 #define LOG_AMP_READ_DELAY          10 // ms
 #define ADC_REF_VOLTAGE             3.3  // Teensy uses a 3.3 V reference for analog inputs
 #define ADC_MAX_VALUE               1023 // default 10-bit resolution
 
 // SP8T Bit Masks
-#define v1_msk                      0x1 // 0x1 = 0b 0001
-#define v2_msk                      0x2 // 0x2 = 0b 0010
-#define v3_msk                      0x4 // 0x4 = 0b 0100
+#define SP8T_NUM_PORTS              8
+#define SP8T_V1_MSK                 0x1 // 0x1 = 0b 0001
+#define SP8T_V2_MSK                 0x2 // 0x2 = 0b 0010
+#define SP8T_V3_MSK                 0x4 // 0x4 = 0b 0100
 
-// ADF5356 Register Control Bit Values
-#define REGISTER_0_CTRL             0x00
-#define REGISTER_1_CTRL             0x01
-#define REGISTER_2_CTRL             0x02
-#define REGISTER_3_CTRL             0x03
-#define REGISTER_4_CTRL             0x04
-#define REGISTER_5_CTRL             0x05
-#define REGISTER_6_CTRL             0x06
-#define REGISTER_7_CTRL             0x07
-#define REGISTER_8_CTRL             0x08
-#define REGISTER_9_CTRL             0x09
-#define REGISTER_10_CTRL            0x0A
-#define REGISTER_11_CTRL            0x0B
-#define REGISTER_12_CTRL            0x0C
-#define REGISTER_13_CTRL            0x0D
-#define REGISTER_CTRL_MSK           0x0F // Last four bits
+
+// DEBUG (dev)
+#define ENABLE_DEBUG_PRINTS 0 // This needs to be 0 when using the CLI to communicate with the Teensy
+
+typedef enum {
+    UNDEF_PORT  = -1,
+    SP8T_PORT_1 = 1,
+    SP8T_PORT_2,
+    SP8T_PORT_3,
+    SP8T_PORT_4,
+    SP8T_PORT_5,
+    SP8T_PORT_6,
+    SP8T_PORT_7,
+    SP8T_PORT_8,
+} sp8t_port_t;
 
 // Data Structures
 typedef struct {
-    uint8_t sp8t_out_port;
+    sp8t_port_t sp8t_out_ports[8];  // 1-8, inclusive
+    uint32_t start_freq;        // MHz
+    uint32_t stop_freq;         //  MHz
+    uint32_t step_size;         // MHz
+    uint32_t delay_ms;          // ms
 } Config_t;
 
 // TODO: make this (maybe just make it a 2D array? uint32_t loss[8][10], 8 sp8t for 10 log amp, 80 total values)

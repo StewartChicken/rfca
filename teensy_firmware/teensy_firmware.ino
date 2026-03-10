@@ -1,55 +1,26 @@
 
-// TODO:
-// Finish SD control
-//  - Finish functions
-//  - Change update config scope
-//  - Controlled via CLI
-//  - Refactor filename buffer design
-// ADF5356 Driver
-//  - SPI interface (init, write 32-bit word)
-//  - Write reg function
-//  - ...
-// Error handling
-//  - CLI communication
-//  - CLI handling
-//  - If an error is thrown in setup, how to communicate? Can't be printed
-// Sweep conduction using ADF driver
-// Config struct
-// Handle blank responses from teensy (usually occur after first boot or reset)
-// Design response data
+// Serial cmd input commands:
+// {cmd: "a", data: NULL} // 1000 MHz output
+// {cmd: "b", data: NULL} // 2000 MHz output
+// {cmd: "c", data: NULL} // 3000 MHz output
+// {cmd: "d", data: NULL} // 4000 MHz output
+// {cmd: "config", data: {sp8t_out_port: 3, start_freq: 1000, stop_freq: 1000, step_size: 1000, delay_ms: 1000}} // Config update
+// {cmd: "sweep", data: "sweep1"} // call (unfinished) sweep function
 
-// Just done: 1/17/2026
-// - Using Arduino IDE serial to communicate with firmware
-//   - Sending raw JSON packets: e.g. {cmd: "delete", data: "Sweep1"}
-// - Can update Config.json and Config_t
-// - Can create sweep file
-// - Can list sweep files
-// - Can delete sweep file
-// - Created the temp_struct in the sweep function (Very last thing done)
+// Notes for 2/24:
+// - Added a delay option to the initFreq function which allows you to pass the delay between register writes as an argument to the Serial command line. 
+//    This lets us control the delays and monitor individual register writes if we want to
 //
-// Next steps:
-// - Design a frequency sweep from laptop -> firmware (What happens when the "sweep" command is issued?)
-// - To start, ignore calibration necessity and assume the measured data is ideal
-// - Figure out all possible combinations of sweeps (ports, output measurement) and design config system that makes each combination reachable
-// - Design ADF5356 driver
-//   - Set Out Frequency
-// - Design a frequency sweep from Firmware perspective
-//   - Function: conduct_sweep(uint8_t out_port, uint8_t[] in_ports, uint32_t start_fq, uint32_t end_fq, uint32_t intvl)
-//      - open sp8t port
-//      - LOOP: start_fq, end_fq, intvl
-//          - set out adf5356 frequency
-//          - delay
-//          - analog_read each in_port
-
-// Future notes:
-// When it comes time to update the data in the Config_t struct, design needs to change in three places:
-// - The config.json file which is fed as input to the CLI must reflect the data structure
-// - The update_config_struct() function must be altered to extract the correct values from incoming data
-// - The Config_t struct definition must be updated in common_defs.h
-
-// Documentation
-// https://arduinojson.org/v7/
-
+//    EX: {cmd: "a", data: 1200} // set to 1000 MHz with 1200 ms delay between register writes
+//
+// - Adding 1.5k resistors fixed the write issue
+// - Can output frequencies between 850 and 6800 MHz
+// - Cleaned up code redistributing to driver files
+// 
+// Next steps
+// - Prep for log-amp reading
+// - Store log amp data (file type/format?)
+// - Integrate switch
 
 // Libraries
 #include <Arduino.h>
@@ -61,158 +32,138 @@
 // Drivers
 #include "./drivers/Inc/sd_card.h"
 #include "./drivers/Src/sd_card.c"
-#include "./drivers/Inc/adf5355.h"
-#include "./drivers/Src/adf5355.c"
+#include "./drivers/Inc/sp8t.h"
+#include "./drivers/Src/sp8t.c"
+#include "./drivers/Inc/adf5356.h"
+#include "./drivers/Src/adf5356.c"
 
+// Application function declarations
+static Config_t update_config_struct(const JsonDocument& config);
+static status_t processCommand(const char* cmd, JsonVariant data);
+static status_t conduct_sweep(const char* sweep_name); 
 
-Config_t sweep_config;
+// Debug function(s)
+static void print_json(const JsonDocument& doc) __attribute__((unused));
+
+// Contains data for conducting signal sweeps
+// Defined in common_defs.h
+static Config_t sweep_config;
 
 // Variables to process incoming data
+// TODO: Cleanup
 static const size_t BUFFER_SIZE = 10 * 1024; // 10 KB Max input string (for now)
 static char buffer[BUFFER_SIZE];
 static size_t idx = 0;
 
-
-// Main loop error handling. This is the status which is communicated to the Python Host
+// Application level error handling. This is the status which is communicated to the Python Host
 static status_t global_status = STATUS_OK;
 
 
-// Function declarations
-int32_t teensy_spi_init(struct no_os_spi_desc **desc, const struct no_os_spi_init_param *param);
-int32_t teensy_spi_write_and_read(struct no_os_spi_desc *desc, uint8_t *data, uint16_t bytes_number);
-int32_t teensy_spi_remove(struct no_os_spi_desc *desc);
-
-// SPI config structs
-static struct no_os_spi_platform_ops teensy_spi_ops = {
-  .init                             = teensy_spi_init,
-  .write_and_read                   = teensy_spi_write_and_read,
-  .transfer                         = NULL,
-  .transfer_dma                     = NULL,
-  .transfer_dma_async               = NULL,
-  .remove                           = teensy_spi_remove,
-  .transfer_abort                   = NULL
-};
-
-static struct no_os_spi_init_param spi_params = {
-  .device_id                        = 0,
-  .max_speed_hz                     = 1000000, // 1 MHz
-  .chip_select                      = 10,  // CS is pin 10
-  .mode                             = NO_OS_SPI_MODE_0,                   // DNU
-  .bit_order                        = NO_OS_SPI_BIT_ORDER_MSB_FIRST, // DNU
-  .lanes                            = NO_OS_SPI_SINGLE_LANE,
-  .platform_ops                     = &teensy_spi_ops,
-  .platform_delays                  = {0},
-  .extra                            = NULL,
-  .parent                           = NULL
-};
-
-//static struct no_os_spi_desc *spi_desc;
-
-
-static struct adf5355_init_param adf_init_params = {
-    .spi_init                       = &spi_params,
-    .dev_id                         = ADF5356,
-    .freq_req                       = 2000000000ULL, // Desired output frequency in Hz
-    .freq_req_chan                  = 0,    // 0 for RFOUTA, 1 for RFOUTB
-    .clkin_freq                     = 122880000, // Reference frequency in Hz
-    .cp_ua                          = 900, // ? Why not 90?
-    .cp_neg_bleed_en                = true,
-    .cp_gated_bleed_en              = false,
-    .cp_bleed_current_polarity_en   = false, // ? What dis do?
-    .mute_till_lock_en              = false,
-    .outa_en                        = true,
-    .outb_en                        = false,
-    .outa_power                     = 3,   // ? Why not 5? Expects 0-3?
-    .outb_power                     = 0,
-    .phase_detector_polarity_neg    = false,
-    .ref_diff_en                    = true,   // ? Why not false?    
-    .mux_out_3v3_en                 = true,
-    .ref_doubler_en                 = false,
-    .ref_div2_en                    = true,
-    .mux_out_sel                    = ADF5355_MUXOUT_DIGITAL_LOCK_DETECT,
-    .outb_sel_fund                  = false
- 
-};
-
-static struct adf5355_dev *adf_dev_struct;            
-  
-
 void setup() {
 
-    // From sd_card.h
-    // Initialize the SD card hardware
-    // Check if the SD card contains:
-    //  - config.json
-    //  - ./data
-    // If dne, create the files
-    global_status = SD_init();
+  // From sd_card.h
+  // Initialize the SD card hardware
+  // Check if the SD card contains:
+  //  - config.json
+  //  - ./data
+  // If dne, create the files
+  global_status = SD_init();
 
+  // Get Config from SD card and populate sweep_config struct
+  JsonDocument config_doc;
+  global_status = SD_get_config(config_doc);
+  sweep_config = update_config_struct(config_doc);
 
-    // Get Config from SD card and populate sweep_config struct
-    JsonDocument config_doc;
-    global_status = SD_get_config(config_doc);
-    sweep_config = update_config_struct(config_doc);
+  // Communication with ADF5356
+  ADF_spi_init();
 
-    //config_adf_init_struct(&adf_init_struct); // Populates struct with default values
-    
-    
-    
-    // Open Serial communication (USB-CDC for Teensy 4.1) after peripheral initialization
-    // Wait for host to run Python script
-    Serial.begin(115200); // Baud is irrelevant for USB-CDC
-    while (!Serial) {} // Stuck in this loop until the Python script is run
+  // For LogAmps
+  analogReadResolution(10);   // 10 bit resolution
 
-    // TODO: Remove (dev functions)
-    //print_json(config_doc);
-    //Serial.println(sweep_config.sp8t_out_port);
-
-    Serial.println("Serial communication established. ");
-    
-    Serial.println("Initializing ADF5356...");
-    int32_t ret = adf5355_init(&adf_dev_struct, &adf_init_params);
-    
+  // GPIO config for sp8t mux
+  sp8t_init();
+  
+  // TODO: If an error is present, send immediately to CLI once connected
+  Serial.begin(115200);   
+  while (!Serial) {}
 }
 
-// Main Loop structure:
-// 1. Check for incoming Serial data
-// 2. Read character by character and populate buffer string
-// 3. If we receive '\n', the command is complete and ready for processing
-// 4. Load buffer -> JSON
-// 5. Process JSON command
 void loop() {
-    if(Serial.available()) {
-        // Read character off the top of the buffer
-        char c = (char)Serial.read();
+  if(Serial.available()) {
+    // Read character off the top of the buffer
+    char c = (char)Serial.read();
 
-        if(c == '\n') { // '\n' termination indicates end of JSON command
-            buffer[idx] = '\0';
+    if(c == '\n') { // '\n' termination indicates end of JSON command
+      buffer[idx] = '\0';
 
-            // Write buffer string to JSON
-            JsonDocument doc;
-            DeserializationError err = deserializeJson(doc, buffer); 
-            if(!err){}
-                // Pass for now
-                // TODO: Handle error
-            
-            // Extract the command and the data from the incoming CLI request
-            const char* cmd = doc["cmd"] | "";
-            JsonVariant data = doc["data"];
+      // Write buffer string to JSON
+      JsonDocument doc;
+      DeserializationError err = deserializeJson(doc, buffer); 
+      if(!err){}
+          // Pass for now
+          // TODO: Handle error
+      
+      // Extract the command and the data from the incoming CLI request
+      const char* cmd = doc["cmd"] | "";
+      JsonVariant data = doc["data"];
 
-            // Processes and executes command, issues response to CLI
-            global_status = processCommand(cmd, data);
-            idx = 0;
-        } 
-        else if(idx < BUFFER_SIZE - 1) { 
-            buffer[idx] = c;
-            idx ++;
-        } 
-        else {
-            // Overflow?
-        }
+      // Processes and executes command, issues response to CLI
+      global_status = processCommand(cmd, data);
+      idx = 0;
+    } 
+    else if(idx < BUFFER_SIZE - 1) { 
+      buffer[idx] = c;
+      idx ++;
+    } 
+    else {
+      // Overflow?
     }
+
+  }
 }
 
-status_t processCommand(const char* cmd, JsonVariant data) {
+/**
+ * @brief Read JSON doc and return a Config_t struct with that data
+ * @param config - Data that will be used to populate the struct
+ * @return: Config_t struct containing config information
+ * TODO: Error handling
+ */
+static Config_t update_config_struct(const JsonDocument& config) {
+    Config_t config_struct;
+
+    // Extract list of ports
+    JsonArrayConst sp8t_ports = config["sp8t_out_ports"].as<JsonArrayConst>();
+
+    // TODO: Error handle below
+    uint8_t idx = 0;
+    for (JsonVariantConst port : sp8t_ports) {
+      int p = port.as<int>();
+
+      config_struct.sp8t_out_ports[idx++] = (sp8t_port_t)p;
+    }
+
+    // Fill unused ports with undefined
+    for(int i = idx; i < 8; i++) {
+      config_struct.sp8t_out_ports[i] = UNDEF_PORT;
+    }
+
+    // Populate struct values
+    config_struct.start_freq = config["start_freq"];
+    config_struct.stop_freq = config["stop_freq"];
+    config_struct.step_size = config["step_size"];
+    config_struct.delay_ms = config["delay_ms"];
+
+    return config_struct;
+}
+
+/**
+ * @brief Given a string command and associated data, process that command into action
+ * @param cmd - String with specified command for HW
+ * @param data - Data associated with command
+ * @return: status_t - Error status
+ * TODO: Error handling
+ */
+static status_t processCommand(const char* cmd, JsonVariant data) {
 
   // Error handling
   status_t cmd_status = STATUS_OK;
@@ -250,100 +201,18 @@ status_t processCommand(const char* cmd, JsonVariant data) {
     }
     else if(strcmp(cmd, "sweep") == 0) {
         const char *sweep_name = data.as<const char*>();
+        
+        // Add the .csv file to the SD card (no data yet)
         cmd_status = SD_add_sweep(sweep_name);
+        // TODO: Handle error
 
-
-        /*
-
+        // Uses the file-scoped sweep_config struct to run a sweep and record data
+        // TODO: Adjust time-out. This function takes too long and the CLI times out (doesn't wait for response from firmware)
+        cmd_status = conduct_sweep(sweep_name);
         
-        // Placeholder for Config_t sweep_config struct
-        struct temp_data {
-            uint8_t out_ports[] = {2, 3, 6, 7}; // SP8T ports, values range from 1-8
-            uint8_t num_out_ports = 4;          // size of out_ports array
-            uint8_t in_ports[]  = {1, 4, 5};    // Log amp ports, values range from 1-10
-            uint8_t num_in_ports = 3;           // size of in_ports array
-            uint32_t start      = 400;          // MHz     
-            uint32_t stop       = 6000;         // MHz
-            uint32_t step       = 100;          // MHz
-        };
-        
-
-        // Here's what the sweep function should look like. All of its arguments should be provided by
-        //  the Config_t sweep_config struct.
-        // 
-        // Params:
-        // - sp8_t_ports specifies which of the 8 outputs from the sp8t board will be swept over
-        // - in_ports specifies which logAmp inputs will be read for each sp8t port
-        // - start is start frequency in MHz
-        // - stop is stop frequency in MHz
-        // - intvl is spacing between measurements in MHz
-        // func conduct_sweep(sp8t_ports[arr], in_ports[arr], start, stop, intvl):
-        //      
-        //      for port in sp8t_ports:
-        //          curr_freq = start;
-        //
-        //          while(curr_freq < stop):
-        //              adf_out(curr_freq)
-        //              delay 
-        //
-        //              for in_port in in_ports:
-        //                  power = analog_read(in_port) 
-        //                  store_data(power, in_port)
-        //
-        //              curr_freq += intvl
-        //          
-        uint32_t curr_freq;
-
-        // Loops 8 times in the worst case
-        for (int i = 0; i < temp_data.num_out_ports; i ++) { 
-            curr_freq = temp_data.start;
-
-            // Loops ~ 150 times in the (very) worst case
-            while(curr_freq < temp_data.stop) {
-                // adf_out(curr_freq) // TODO: Write this function in the ADF driver
-                // delay() // TODO: Establish delay (if needed)
-                
-                // Loops 10 times in the worst case
-                for (int j = 0; j < temp_data.num_in_ports; j ++) {
-                    //int power = analogRead(log_amp(j)) // TODO: uint32_t for power? Dynamic selection of log amps based on index
-                    // power - cal_data // TODO: design cal system and cal struct
-                    // SD_add_sweep_data(power (V), SP8T_port, LogAmp_port, time_stamp)
-                    // Once done writing to SD, continue;
-                    continue;
-                }
-            }
-        }
-
-        // Worst case ~15,000 iterations of the above loop
-        // ~ (32 * 13) + 100 cycles overhead ~= 500 cycles to output a frequency
-        // stabilize delay ~ 1ms?
-        // write SD ~ 1ms?
-        // Teensy 4.1 executes ~ 1.4 IPC at 600 MHz 
-        //  - 1 Cycle ~= 1.66e-9 s (~1ns)
-        // Each loop iteration takes 3ms at the high end?
-        // 3ms * 15,000 ~= 1 min in the worst case
-
-        // TODO: conduct sweep
-        // 1) Enable correct sp8t port
-        // 2) Start sweep thread (ends once each frequency value has been recorded)
-        //     a) Write ADF5356 (generate signal)
-        //     b) Analog Read log-amp (measure signal)
-        //     c) Record voltage (write to SD card sweep.csv)
-        //sp8t_enablePort(sweep_config.sp8t_out_port); // 1)
-
-
-
-        */
-
-
-        // for each freq in frequency_range:
-        //   genFreq(freq);
-        //   power = analogRead(logAmp) + sum math;
-        //   writeSD(filename, power);
-
         response["status"] = status_to_str(cmd_status);
         response["cmd"] = cmd;
-        response["data"]["resp_data"] = NULL; // TODO: Return sweep data?
+        response["data"]["resp_data"] = ".csv?"; 
         
         serializeJson(response, Serial);
     }
@@ -385,139 +254,124 @@ status_t processCommand(const char* cmd, JsonVariant data) {
         
         serializeJson(response, Serial);
     }
+    // Dev command
+    else if(strcmp(cmd, "freq") == 0) { // {cmd: "freq", data: 3500} // Set output to 3500 MHz
+#if ENABLE_DEBUG_PRINTS
+      Serial.println("Got 'freq' command, initializing frequency");
+      Serial.print("Frequency: ");
+#endif
+      const uint32_t freq = data.as<uint32_t>();
+#if ENABLE_DEBUG_PRINTS
+      Serial.println(freq);
+#endif
+      ADF_write_freq(freq);
+
+      float raw = analogRead(LOG_AMP_0);
+      float voltage = (raw * (float)ADC_REF_VOLTAGE) / (float)ADC_MAX_VALUE; // Convert raw ADC value to voltage (V)
+
+      float slope = 0.00434pow(((float)freq / 1000.0), 3) - 0.0441pow(((float)freq / 1000.0), 2) + 0.123((float)freq / 1000.0) + 18.6;
+      float intercept = -0.0153pow(((float)freq / 1000.0), 3) + 0.209pow(((float)freq / 1000.0), 2) - 1.21((float)freq / 1000.0) - 61.8;
+      float power = (voltage * 1000.0) / slope + intercept;
+
+#if ENABLE_DEBUG_PRINTS
+      Serial.print("Raw reading: ");
+      Serial.println(raw);
+      Serial.print("Voltage: ");
+      Serial.println(voltage);
+      Serial.print("Slope: ");
+      Serial.println(slope);
+      Serial.println("Intercept: ");
+      Serial.println(intercept);
+      Serial.print("Power reading: ");
+      Serial.println(power);
+#endif 
+
+    }
 
     return cmd_status;
 }
 
-Config_t update_config_struct(const JsonDocument& config) {
-    Config_t config_struct;
-
-    // Populate struct values
-    config_struct.sp8t_out_port = config["sp8t_out_port"];
-
-    return config_struct;
-}
-
-void conduct_sweep() {
-
-}
-
-void print_json(const JsonDocument& doc) {
-    serializeJsonPretty(doc, Serial);
-    Serial.println();
-}
-
-
-
 /**
- * @brief Initialize the SPI communication peripheral.
- * @param desc - The SPI descriptor.
- * @param param - The structure that contains the SPI parameters.
- * @return 0 in case of success, -1 otherwise.
+ * @brief Conduct sweep w/ in hardware according to config file
+ * @param TODO
+ * @return: status_t
+ * TODO: Error handling
  */
-int32_t teensy_spi_init(struct no_os_spi_desc **desc, const struct no_os_spi_init_param *param) {
+static status_t conduct_sweep(const char* sweep_name) {
+  sp8t_port_t *ports = sweep_config.sp8t_out_ports; 
+  uint32_t start_freq = sweep_config.start_freq; // All in MHz
+  uint32_t curr_freq = start_freq; 
+  uint32_t stop_freq = sweep_config.stop_freq;
+  uint32_t step_size = sweep_config.step_size;
+  uint32_t delay_ms = sweep_config.delay_ms; // Delay between frequencies
 
-  Serial.println("Entered the teensy_spi_init() function!");
-  // Steps:
-  // 1. Begin SPI
-  // 2. Allocate *desc
-  // 3. Transfer params to *desc
-  // 4. Config Chip Select pin
-  // 5. return
+#if ENABLE_DEBUG_PRINTS
+  Serial.println("Sweep Config Values:");
+  Serial.print("start_freq: ");
+  Serial.println(curr_freq);
+  Serial.print("stop_freq: ");
+  Serial.println(stop_freq);
+  Serial.print("step_size: ");
+  Serial.println(step_size);
+  Serial.print("delay_ms: ");
+  Serial.println(delay_ms);
+#endif
 
-  if (!desc || !param) return -1;
+  // Flow:
+  // Enable first port
+  // Write frequency
+  // Measure all 10 outputs
+  // Record data
 
-  // Begin Teensy4.1 SPI0
-  SPI.begin();
+  float data[12] = {0};
+  // Sweep according to config
 
-  // Allocate desc
-  struct no_os_spi_desc *local_desc;
-  local_desc = (struct no_os_spi_desc *)no_os_calloc(1, sizeof(*local_desc));
-  if (!local_desc)
-    return -1;
+  // Conduct sweep through each of the specified ports
+  for(int port = 0; port < SP8T_NUM_PORTS; port++) {
 
-  local_desc->device_id       = param->device_id;
-  local_desc->max_speed_hz    = param->max_speed_hz;
-  local_desc->chip_select     = param->chip_select;
-  local_desc->mode            = param->mode;
-  local_desc->bit_order       = param->bit_order;
-  local_desc->lanes           = param->lanes;
-  local_desc->extra           = param->extra;
+    // Only sweep for select ports
+    if(ports[port] == UNDEF_PORT) break;
 
-  pinMode(local_desc->chip_select, OUTPUT);
-  digitalWrite(local_desc->chip_select, LOW); // Idles in the low state
+    // Otherwise, enable the correct port
+    sp8t_enablePort(ports[port]);
+    data[0] = (float)(ports[port]);
 
-  *desc = local_desc;
+    while(curr_freq <= stop_freq) {
+      data[1] = (float)(curr_freq);
 
-  // 0 = OK status
-  return 0;
-}
+      ADF_write_freq(curr_freq);
+      
+      for(int i = 0; i < NUM_LOG_AMPS; i++) {
+        int raw = analogRead(log_amp_pins[i]);
 
-/**
- * @brief Write and read data to/from SPI.
- * @param desc - The SPI descriptor.
- * @param data - The buffer with the transmitted/received data.
- * @param bytes_number - Number of bytes to write/read.
- * @return 0 in case of success, -1 otherwise.
- */
-int32_t teensy_spi_write_and_read(struct no_os_spi_desc *desc, uint8_t *data, uint16_t bytes_number) {
+        // Convert raw ADC value to voltage
+        float voltage = (raw * ADC_REF_VOLTAGE) / ADC_MAX_VALUE;
+        data[i + 2] = voltage;
 
-  // Steps:
-  // 1. Begin SPI transaction
-  // 2. Assert CS LOW
-  // 3. Transfer Data
-  // 4. Assert CS HIGH
-  // 5. End SPI Transaction
+        delay(LOG_AMP_READ_DELAY);
+      }
 
-  if (!desc || !data || bytes_number == 0) return -1;
+      // TODO: Error handling
+      SD_add_data(sweep_name, data);
 
-  // TODO: Globally define?
-  SPISettings spiSettings(
-    1000000,      // 1 MHz SPI clock
-    MSBFIRST,     // Bit order
-    SPI_MODE0     // CPOL=0, CPHA=0
-  );
+      curr_freq += step_size;
+      delay(delay_ms);
+    }
 
-  /*
-  // Using desc:
-  SPISettings spiSettings(
-    desc->max_speed_hz,      // 1 MHz SPI clock
-    desc->bit_order,         // Bit order
-    desc->mode               // CPOL=0, CPHA=0
-  );
-  */
-
-  SPI.beginTransaction(spiSettings);
-
-  /*
-  for(int i = 0; i < bytes_number; i ++) {
-    SPI.transfer(data[i]);
+    curr_freq = start_freq;
   }
-    */
-  SPI.transfer(data, bytes_number);   // in-place buffer
 
-  SPI.endTransaction();
-
-  digitalWrite(desc->chip_select, HIGH); // Latch data in ADF5356 Shift Register
-  delayMicroseconds(2);
-  digitalWrite(desc->chip_select, LOW);
-
-  // 0 = OK status
-  return 0;
+  return STATUS_OK;
 }
 
 /**
- * @brief Free the resources allocated by no_os_spi_init().
- * @param desc - The SPI descriptor.
- * @return 0 in case of success, -1 otherwise.
+ * @brief Print a JSON doc to serial
+ * @param doc - Json document to be serialized
+ * @return: void
  */
-int32_t teensy_spi_remove(struct no_os_spi_desc *desc) {
-
-  if (!desc) return -1;
-
-  digitalWrite(desc->chip_select, HIGH);
-  no_os_free(desc);
-
-  // 0 = OK status
-  return 0;
+static void print_json(const JsonDocument& doc) {
+    serializeJsonPretty(doc, Serial);
+#if ENABLE_DEBUG_PRINTS
+    Serial.println(); // Remove when using CLI
+#endif
 }

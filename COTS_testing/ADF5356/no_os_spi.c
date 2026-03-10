@@ -33,7 +33,8 @@
 
 #include <inttypes.h>
 #include <stdlib.h>
-#include "../Src/no_os_mutex.c"
+#include "no_os_mutex.c"
+#include "no_os_spi.h"
 
 /**
  * @brief spi_table contains the pointers towards the SPI buses

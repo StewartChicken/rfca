@@ -9,8 +9,8 @@ import serial
 import time
 import json
 import sys
-PORT = "COM7"
-BAUD = 9600
+PORT = "COM4"
+BAUD = 115200
 
 # Connect to Teensy
 ser = serial.Serial(PORT, BAUD, timeout=1)
@@ -102,7 +102,7 @@ def processResponse(resp):
 
 # Example usage:
 # python rfca.py config --file ./config.json
-# data ex: {cmd: "config", data: {sp8t_out_port: 3}}
+# data ex: {cmd: "config", data: {sp8t_out_port: 3, start_freq: 1000, stop_freq: 1000, step_size: 1000, delay_ms: 1000}}
 if args.command == "config":
     config_file = args.file
 
@@ -118,7 +118,7 @@ if args.command == "config":
 
 # Example usage: 
 # python rfca.py sweep --name "Sweep1"
-# data ex: {cmd: "sweep", data: "Sweep1"}
+# data ex: {cmd: "sweep", data: "Sweep1"}   
 if args.command == "sweep":
     sweep_name = args.name
     response = sendJson("sweep", sweep_name)
