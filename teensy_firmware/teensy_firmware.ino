@@ -21,6 +21,29 @@
 // - Prep for log-amp reading
 // - Store log amp data (file type/format?)
 // - Integrate switch
+//
+// Done as of 3/12/2026
+// - Full frequency control from 800 MHz to 6.8 GHz (SPI)
+// - SP8T control
+// - SD card control for state persistence
+// - LogAmp reading
+// - Record LogAmp read values to SD
+// - 
+//
+// TODO
+// - Data retrieval from firmware SD to CLI
+// - Finalize sweep process
+// - Thru cal. process
+// - Error handling
+// - EXPO GUI
+// - Finalize all drivers
+// - Finalize configurable parameters
+// 
+// PLAN
+// - Finalize Teensy/CLI communication
+// - Finalize config, calibration, sweep process
+// - Finalize Error handling
+// - EXPO GUI
 
 // Libraries
 #include <Arduino.h>
@@ -241,8 +264,20 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
         serializeJson(response, Serial);
     }
     else if(strcmp(cmd, "retrieve") == 0) {
-        // TODO: Retrieve the specified file and send to CLI
-        // Pass
+        const char *sweep_name = data.as<const char*>();
+
+        String csv_data;
+
+        // Un-implemented for now
+        cmd_status = SD_get_sweep_csv(sweep_name, csv_data);
+
+        response["status"] = "OK";
+        response["cmd"] = cmd;
+        response["data"]["sweep_name"] = sweep_name;
+        response["data"]["sweep_data"] = csv_data;
+
+        serializeJson(response, Serial);
+
     }
     else if(strcmp(cmd, "delete") == 0) {
         const char *sweep_name = data.as<const char*>();

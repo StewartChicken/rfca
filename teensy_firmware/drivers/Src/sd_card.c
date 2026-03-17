@@ -274,3 +274,33 @@ status_t SD_get_filenames(char filenames[][64], const uint8_t maxFiles, uint8_t 
   return STATUS_OK;
 }
 
+/**
+ * @brief Returns the .csv file of the specified sweep
+ * @param sweep_name - Name of sweep to retrieve
+ * @param csv_out - Receives file contents
+ * @return: status_t
+ * TODO: Error handling
+ */ 
+status_t SD_get_sweep_csv(const char* sweep_name, String &csv_out) {
+  char file_path[256];
+
+  int n = snprintf(file_path, sizeof(file_path), "%s/%s.csv", DATA_PATH, sweep_name);
+  if (n <= 0 || n >= (int)sizeof(file_path)) {
+    return STATUS_ERR_UNKNOWN;
+  }
+
+  File f = SD.open(file_path, FILE_READ);
+  if (!f) {
+    return STATUS_ERR_SD_OPEN_FAIL;
+  }
+
+  csv_out = "";
+
+  while(f.available()) {
+    csv_out += (char)f.read();
+  }
+
+  f.close();
+
+  return STATUS_OK;
+}
