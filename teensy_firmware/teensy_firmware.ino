@@ -133,7 +133,6 @@ void loop() {
       // Processes and executes command, issues response to CLI
       acknowledge_CLI(cmd);
       global_status = processCommand(cmd, data);
-      Serial.println(); // TODO: tidy
       complete_data(cmd);
 
       idx = 0;
@@ -169,39 +168,6 @@ static void complete_data(const char* cmd) {
   Serial.println();
 }
 
-/**
- * @brief Read JSON doc and return a Config_t struct with that data
- * @param config - Data that will be used to populate the struct
- * @return: Config_t struct containing config information
- * TODO: Error handling
- */
-static Config_t update_config_struct(const JsonDocument& config) {
-    Config_t config_struct;
-
-    // Extract list of ports
-    JsonArrayConst sp8t_ports = config["sp8t_out_ports"].as<JsonArrayConst>();
-
-    // TODO: Error handle below
-    uint8_t idx = 0;
-    for (JsonVariantConst port : sp8t_ports) {
-      int p = port.as<int>();
-
-      config_struct.sp8t_out_ports[idx++] = (sp8t_port_t)p;
-    }
-
-    // Fill unused ports with undefined
-    for(int i = idx; i < 8; i++) {
-      config_struct.sp8t_out_ports[i] = UNDEF_PORT;
-    }
-
-    // Populate struct values
-    config_struct.start_freq = config["start_freq"];
-    config_struct.stop_freq = config["stop_freq"];
-    config_struct.step_size = config["step_size"];
-    config_struct.delay_ms = config["delay_ms"];
-
-    return config_struct;
-}
 
 /**
  * @brief Given a string command and associated data, process that command into action
@@ -216,6 +182,9 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
   status_t cmd_status = STATUS_OK;
 
   JsonDocument response;
+
+  response["type"] = "data";
+  response["cmd"] = cmd;
 
   // Parse and Process
     if(strcmp(cmd, "config") == 0) {
@@ -240,11 +209,8 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
         // Construct the response to the CLI
         // TODO: Response is constructed assuming no error is thrown. Add the case where the error is thrown.
         response["status"] = status_to_str(cmd_status);
-        response["cmd"] = cmd;
-        response["sd_config"] = config_doc; // This is the config data the SD card contains
+        response["data"]["resp_data"] = config_doc; // This is the config data the SD card contains
 
-        // Send response
-        serializeJson(response, Serial);
     }
     else if(strcmp(cmd, "sweep") == 0) {
         const char *sweep_name = data.as<const char*>();
@@ -258,10 +224,8 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
         cmd_status = conduct_sweep(sweep_name);
         
         response["status"] = status_to_str(cmd_status);
-        response["cmd"] = cmd;
         response["data"]["resp_data"] = ".csv?"; 
         
-        serializeJson(response, Serial);
     }
     else if(strcmp(cmd, "calibrate") == 0) {
         // TODO: Calibrate lol
@@ -275,17 +239,15 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
         cmd_status = SD_get_filenames(filenames, MAX_FILES, &file_count);
         
         response["status"] = "OK";
-        response["cmd"] = cmd;
         
         JsonObject data = response["data"].to<JsonObject>();
-        JsonArray arr = data["resp_data"].to<JsonArray>();
+        JsonArray arr = data["files"].to<JsonArray>();
 
         // Populate array
         for (uint8_t i = 0; i < file_count; ++i) {
             arr.add(filenames[i]);  // duplicates the C-string into the doc
         }
 
-        serializeJson(response, Serial);
     }
     else if(strcmp(cmd, "retrieve") == 0) {
         const char *sweep_name = data.as<const char*>();
@@ -296,11 +258,8 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
         cmd_status = SD_get_sweep_csv(sweep_name, csv_data);
 
         response["status"] = "OK";
-        response["cmd"] = cmd;
         response["data"]["sweep_name"] = sweep_name;
         response["data"]["sweep_data"] = csv_data;
-
-        serializeJson(response, Serial);
 
     }
     else if(strcmp(cmd, "delete") == 0) {
@@ -308,10 +267,6 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
         cmd_status = SD_delete_sweep(sweep_name);
         
         response["status"] = status_to_str(cmd_status);
-        response["cmd"] = cmd;
-        response["data"]["resp_data"] = "Sweep Deleted!";
-        
-        serializeJson(response, Serial);
     }
     // Dev command
     else if(strcmp(cmd, "freq") == 0) { // {cmd: "freq", data: 3500} // Set output to 3500 MHz
@@ -365,6 +320,10 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
 #endif 
 
     }
+
+    // Send response
+    serializeJson(response, Serial);
+    Serial.println();
 
     return cmd_status;
 }
@@ -440,6 +399,40 @@ static status_t conduct_sweep(const char* sweep_name) {
   }
 
   return STATUS_OK;
+}
+
+/**
+ * @brief Read JSON doc and return a Config_t struct with that data
+ * @param config - Data that will be used to populate the struct
+ * @return: Config_t struct containing config information
+ * TODO: Error handling
+ */
+static Config_t update_config_struct(const JsonDocument& config) {
+    Config_t config_struct;
+
+    // Extract list of ports
+    JsonArrayConst sp8t_ports = config["sp8t_out_ports"].as<JsonArrayConst>();
+
+    // TODO: Error handle below
+    uint8_t idx = 0;
+    for (JsonVariantConst port : sp8t_ports) {
+      int p = port.as<int>();
+
+      config_struct.sp8t_out_ports[idx++] = (sp8t_port_t)p;
+    }
+
+    // Fill unused ports with undefined
+    for(int i = idx; i < 8; i++) {
+      config_struct.sp8t_out_ports[i] = UNDEF_PORT;
+    }
+
+    // Populate struct values
+    config_struct.start_freq = config["start_freq"];
+    config_struct.stop_freq = config["stop_freq"];
+    config_struct.step_size = config["step_size"];
+    config_struct.delay_ms = config["delay_ms"];
+
+    return config_struct;
 }
 
 /**

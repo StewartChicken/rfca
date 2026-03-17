@@ -22,8 +22,8 @@ def parse_user_input(user_input):
 
     if len(parts) == 1:
         data = None
-    elif len(parts) == 3:
-        arg = parts[2]
+    elif len(parts) == 2:
+        arg = parts[1]
 
         # Only the 'config' commands needs special handling as it sends a JSON file to the firmware
         if cmd == "config":  
@@ -74,18 +74,26 @@ def wait_for_response(timeout=15):
 
                 if not line:
                     continue
+                
+                # For debugging
+                #print(f"[FW] {line}")
 
-                print(f"\n[FW] {line}")
-
-                # Try to interpret as JSON
+                # Process as JSON
                 try:
                     msg = json.loads(line)
 
-                    # Exit if firmware says command is complete
-                    if msg.get("type") == "complete":
-                        print("[INFO] Command complete.\n")
+                    # Process 'ack' and 'complete' codes from firmware
+                    if msg.get("type") == "ack":
+                        print("[INFO] Firmware has received command.")
+                        continue
+                    elif msg.get("type") == "complete":
+                        print("[INFO] Firmware has finished processed command.")
                         return
 
+                    # Otherwise, process response
+                    processResponse(msg)
+
+                # String was not JSON format
                 except json.JSONDecodeError:
                     # Non-JSON firmware output is still shown, just ignored structurally
                     pass
@@ -94,12 +102,43 @@ def wait_for_response(timeout=15):
                 print(f"[ERROR] Failed to read serial response: {e}")
 
         # Spinner while waiting
-        print(f"\r[INFO] Waiting for firmware... {spinner[spinner_idx % 4]}", end="", flush=True)
-        spinner_idx += 1
+        #print(f"\r[INFO]{spinner[spinner_idx % 4]}", end="", flush=True)
+        #spinner_idx += 1
         time.sleep(0.1)
 
     # Timeout warning
     print("\n[WARN] Response wait timed out.\n")
+
+# response_data is JSON
+def processResponse(response_data):
+
+    # Should be all cases (for now)
+    if (response_data.get("type") == "data"):
+        cmd = response_data.get("cmd")
+
+        if(cmd == "config"):
+            pass
+        elif(cmd == "retrieve"):
+            sweep_name = response_data.get("data").get("sweep_name")
+            sweep_data = response_data.get("data").get("sweep_data")
+            
+            # Get directory of this script
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+
+            # Construct file path
+            file_path = os.path.join(script_dir, f"{sweep_name}.csv")
+
+            try:
+                with open(file_path, "w", encoding="utf-8") as f:
+                    f.write(sweep_data)
+
+                print(f"[INFO] Saved sweep to: {file_path}")
+
+            except Exception as e:
+                print(f"[ERROR] Failed to save CSV: {e}")
+
+        else:
+            print(cmd)
 
 def main():
     
