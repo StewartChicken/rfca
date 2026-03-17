@@ -1,75 +1,44 @@
 
-# TODO: dynamically assign COM port
-
-# Used to build the Command Line Interface (CLI)
-from argparse import ArgumentParser, Namespace
-
-# Used for USB communication with the Teensy 4.1
+# TODO: Create consistent dependency environment (multiple libraries for 'serial')
+import os
+import json
+import shlex
 import serial
 import time
-import json
 import sys
 PORT = "COM4"
 BAUD = 115200
 
 # Connect to Teensy
+print("Connecting to Firmware...")
 ser = serial.Serial(PORT, BAUD, timeout=1)
 time.sleep(2)
 
 
-###############################
-###### Create Arg Parser ######
-###############################
+def parse_user_input(user_input):
+    parts = shlex.split(user_input) # Space-delimited
 
-parser = ArgumentParser(description="Main parser")
-subparsers = parser.add_subparsers(dest="command", required=True)
+    cmd = parts[0]
 
-# Create the 'config' subcommand
-config_parser = subparsers.add_parser("config", help="Configure the system")
-config_parser.add_argument(
-    "-f", "--file", 
-    required=True, 
-    help="Specify the configuration filename"
-)
+    if len(parts) == 1:
+        data = None
+    elif len(parts) == 3:
+        arg = parts[2]
 
-# Create the 'sweep' subcommand
-sweep_parser = subparsers.add_parser("sweep", help="Run a sweep")
-sweep_parser.add_argument(
-    "-n", "--name", 
-    required=True, 
-    help="Specify the name of the sweep"
-)
+        # Only the 'config' commands needs special handling as it sends a JSON file to the firmware
+        if cmd == "config":  
+            config_file = arg
 
-# Create the 'calibrate' subcommand
-calibrate_parser = subparsers.add_parser("calibrate", help="Calibrate thru loss")
+            try: 
+                with open(config_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+            except Exception as e:
+                print(f"Failed to read/parse JSON file: {e}")
+                return None, None # TODO, check this error handling
+        else:
+            data = arg
 
-# Create the 'cancel' subcommand
-#cancel_parser = subparsers.add_parser("cancel", help="Cancels a running sweep")
-
-# Creates the 'list' subcomand
-list_parser = subparsers.add_parser("list", help="Lists previous sweeps")
-
-# Create the 'retrieve' subcomand
-retrieve_parser = subparsers.add_parser("retrieve", help="Retrieve specified sweep data")
-retrieve_parser.add_argument(
-    "-n", "--name",
-    required=True,
-    help="Specify the name of the sweep"
-)
-
-# Create the 'delete' subcomand
-delete_parser = subparsers.add_parser("delete", help="Delete specified sweep data")
-delete_parser.add_argument(
-    "-n", "--name",
-    required=True,
-    help="Specify the name of the sweep to be deleted"
-)
-
-args: Namespace = parser.parse_args()
-
-##############################
-###### Helper Functions ######
-##############################
+    return cmd, data
 
 # Send JSON command data to firmware
 def sendJson(cmd, data):
@@ -86,64 +55,85 @@ def sendJson(cmd, data):
     ser.write(body.encode("utf-8"))
     ser.flush()
 
-    # Wait for firmware response
-    response = ser.readline().decode("utf-8", errors="ignore").strip()
-    #print(f"Teensy response: {response!r}")
-    return response
 
-# TODO: Write this function. This is a placeholder right now
-def processResponse(resp):
-    print(f"Teensy response: {resp}")
+# 15 second timeout by default
+def wait_for_response(timeout=15):
+    print("[INFO] Waiting firmware for response...")
 
+    spinner = ["|", "/", "-", "\\"]
+    spinner_idx = 0
+    start_time = time.time()
 
-###############################
-##### Parse CLI arguments #####
-###############################
+    start_time = time.time()
 
-# Example usage:
-# python rfca.py config --file ./config.json
-# data ex: {cmd: "config", data: {sp8t_out_port: 3, start_freq: 1000, stop_freq: 1000, step_size: 1000, delay_ms: 1000}}
-if args.command == "config":
-    config_file = args.file
+    while (time.time() - start_time) < timeout:
+        # Read and process anything currently available
+        if ser.in_waiting > 0:
+            try:
+                line = ser.readline().decode("utf-8", errors="ignore").strip()
 
-    try: 
-        with open(config_file, "r", encoding="utf-8") as f:
-            cfg_obj = json.load(f)
-    except Exception as e:
-        print(f"Failed to read/parse JSON file: {e}")
-        sys.exit(1)
+                if not line:
+                    continue
 
-    response = sendJson("config", cfg_obj)
-    processResponse(response)
+                print(f"\n[FW] {line}")
 
-# Example usage: 
-# python rfca.py sweep --name "Sweep1"
-# data ex: {cmd: "sweep", data: "Sweep1"}   
-if args.command == "sweep":
-    sweep_name = args.name
-    response = sendJson("sweep", sweep_name)
-    processResponse(response)
+                # Try to interpret as JSON
+                try:
+                    msg = json.loads(line)
 
-# Example usage:
-# python rfca.py retrieve --name "Sweep1"
-if args.command == "retrieve":
-    sweep_name = args.name
-    response = sendJson("retrieve", sweep_name)
-    processResponse(response)
+                    # Exit if firmware says command is complete
+                    if msg.get("type") == "complete":
+                        print("[INFO] Command complete.\n")
+                        return
 
-# Example usage:
-# python rfca.py delete --name "Sweep1"
-# data ex: {cmd: "delete", data: "Sweep1"}
-if args.command == "delete":
-    sweep_name = args.name
-    response = sendJson("delete", sweep_name)
-    processResponse(response)
+                except json.JSONDecodeError:
+                    # Non-JSON firmware output is still shown, just ignored structurally
+                    pass
 
-# Example usage:
-# python rfca.py list
-# data ex: {cmd: "list", data: NULL}
-if args.command == "list":
-    response = sendJson("list", None)
-    processResponse(response)
+            except Exception as e:
+                print(f"[ERROR] Failed to read serial response: {e}")
+
+        # Spinner while waiting
+        print(f"\r[INFO] Waiting for firmware... {spinner[spinner_idx % 4]}", end="", flush=True)
+        spinner_idx += 1
+        time.sleep(0.1)
+
+    # Timeout warning
+    print("\n[WARN] Response wait timed out.\n")
+
+def main():
     
-ser.close()
+    # TODO: Check OS for clear function
+    os.system('cls')
+
+    print("\n=== RFCA CLI ===")
+    print("Enter commands below")
+    print("Type 'q' to quit\n")
+
+    while True:
+        try:
+            # Prompt user
+            user_input = input("rfca> ").strip()
+
+            # Quit condition
+            if user_input.lower() in ["q", "quit", "exit"]:
+                print("Exiting RFCA CLI...")
+                break
+
+            # Ignore empty input
+            if not user_input:
+                continue
+
+            cmd, data = parse_user_input(user_input)
+            sendJson(cmd, data)
+            wait_for_response()
+            
+        except KeyboardInterrupt:
+            print("\n[INFO] Interrupted. Type 'q' to quit.")
+        except EOFError:
+            print("\n[INFO] EOF received. Exiting.")
+            break
+
+
+if __name__ == "__main__":
+    main()

@@ -63,7 +63,7 @@ static const uint8_t log_amp_pins[10] = {
 
 
 // DEBUG (dev)
-#define ENABLE_DEBUG_PRINTS 1 // This needs to be 0 when using the CLI to communicate with the Teensy
+#define ENABLE_DEBUG_PRINTS 0 // This needs to be 0 when using the CLI to communicate with the Teensy
 
 typedef enum {
     UNDEF_PORT  = -1,

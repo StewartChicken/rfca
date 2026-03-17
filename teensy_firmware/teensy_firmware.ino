@@ -131,7 +131,11 @@ void loop() {
       JsonVariant data = doc["data"];
 
       // Processes and executes command, issues response to CLI
+      acknowledge_CLI(cmd);
       global_status = processCommand(cmd, data);
+      Serial.println(); // TODO: tidy
+      complete_data(cmd);
+
       idx = 0;
     } 
     else if(idx < BUFFER_SIZE - 1) { 
@@ -143,6 +147,26 @@ void loop() {
     }
 
   }
+}
+
+static void acknowledge_CLI(const char* cmd) {
+  JsonDocument ack;
+  ack["type"] = "ack";
+  ack["cmd"] = cmd;
+
+  // Send response
+  serializeJson(ack, Serial);
+  Serial.println();
+}
+
+static void complete_data(const char* cmd) {
+  JsonDocument complete;
+  complete["type"] = "complete";
+  complete["cmd"] = cmd;
+
+  // Send response
+  serializeJson(complete, Serial);
+  Serial.println();
 }
 
 /**

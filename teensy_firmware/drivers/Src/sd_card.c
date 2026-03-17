@@ -197,7 +197,7 @@ status_t SD_delete_sweep(const char* sweep_name)
   bool success;
 
   char file_path[256];
-  int n = snprintf(file_path, sizeof(file_path), "%s/%s", DATA_PATH, sweep_name);
+  int n = snprintf(file_path, sizeof(file_path), "%s/%s.csv", DATA_PATH, sweep_name);
 
   if (n <= 0 || n >= (int)sizeof(file_path)) {
     // truncated or formatting error
