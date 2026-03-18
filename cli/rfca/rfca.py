@@ -84,10 +84,10 @@ def wait_for_response(timeout=15):
 
                     # Process 'ack' and 'complete' codes from firmware
                     if msg.get("type") == "ack":
-                        print("[INFO] Firmware has received command.")
+                        print(f'[INFO] Firmware has received the \'{msg.get("cmd")}\' command.')
                         continue
                     elif msg.get("type") == "complete":
-                        print("[INFO] Firmware has finished processed command.")
+                        print(f'[INFO] Firmware has finished processing the \'{msg.get("cmd")}\' command.')
                         return
 
                     # Otherwise, process response
@@ -112,47 +112,82 @@ def wait_for_response(timeout=15):
 # response_data is JSON
 def processResponse(response_data):
 
-    # Should be all cases (for now)
+    # Handle errors returned by the firmware
+    if (response_data.get("status") != "OK"):
+        processError()
+        return
+    
+    # If no errors, process the response based on the type
     if (response_data.get("type") == "data"):
         cmd = response_data.get("cmd")
+        data = response_data.get("data")
+        processData(cmd, data)
+        return
 
-        if(cmd == "config"):
-            pass
-        elif(cmd == "retrieve"):
-            sweep_name = response_data.get("data").get("sweep_name")
-            sweep_data = response_data.get("data").get("sweep_data")
-            
-            # Get directory of this script
-            script_dir = os.path.dirname(os.path.abspath(__file__))
 
-            # Construct file path
-            file_path = os.path.join(script_dir, f"{sweep_name}.csv")
+# Process response data from all possible commands
+def processData(cmd, data):
+    if(cmd == "config"):
+        config_params = data.get("config_params")
+        print('[INFO] Configured RFCA with the following parameters:')
+        print(f'[INFO] {config_params}')
+    elif(cmd == "calibrate"):
+        pass
+    elif(cmd == "sweep"):
+        config_params = data.get("config_params")
+        print("[INFO] Completed sweep with the following parameters:")
+        print(f'[INFO] {config_params}')
+    elif(cmd == "list"):
+        files = data.get("files")
 
-            try:
-                with open(file_path, "w", encoding="utf-8") as f:
-                    f.write(sweep_data)
-
-                print(f"[INFO] Saved sweep to: {file_path}")
-
-            except Exception as e:
-                print(f"[ERROR] Failed to save CSV: {e}")
-
+        if(len(files) == 0):
+            print("[INFO] Found 0 files")
         else:
-            print(cmd)
+            print(f"[INFO] Found {len(files)} file(s): \n")
+            for file in files:
+                print(file)
+
+            print('\n')
+
+    elif(cmd == "retrieve"):
+        sweep_name = data.get("sweep_name")
+        sweep_data = data.get("sweep_data")
+        
+        # Get directory of this script
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+
+        # Construct file path
+        file_path = os.path.join(script_dir, f"{sweep_name}.csv")
+
+        try:
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(sweep_data)
+
+            print(f"[INFO] Saved sweep to: {file_path}")
+
+        except Exception as e:
+            print(f"[ERROR] Failed to save CSV: {e}")
+    elif(cmd == "delete"): 
+        sweep_name = data.get("sweep_name")
+        print(f"[INFO] Deleted {sweep_name} from the firmware")
+    else:
+        # This shouldn't happen TODO: Throw error?
+        print(cmd)
+
+# TODO
+def processError():
+    print("Error detected")
 
 def main():
     
-    # TODO: Check OS for clear function
-    os.system('cls')
-
-    print("\n=== RFCA CLI ===")
+    print("=== RFCA CLI ===")
     print("Enter commands below")
     print("Type 'q' to quit\n")
 
     while True:
         try:
             # Prompt user
-            user_input = input("rfca> ").strip()
+            user_input = input("rfca>> ").strip()
 
             # Quit condition
             if user_input.lower() in ["q", "quit", "exit"]:

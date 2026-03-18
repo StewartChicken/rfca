@@ -44,6 +44,15 @@
 // - Finalize config, calibration, sweep process
 // - Finalize Error handling
 // - EXPO GUI
+//
+// 3/17
+// - Finished retrieve command between Teensy and CLI so .csv can be transferred to CLI
+// - Switched CLI to loop-based implementation creating better UX
+//    - Incorporated pseudo 'handshake' where Teensy sends ack and complete messages to indicate progress
+// - .csv files are saved locally, can now begin working on EXPO GUI which will display their contents
+// - Error handling has structure but needs to be completed rigorously
+// - Calibration process needs to be done
+// - 
 
 // Libraries
 #include <Arduino.h>
@@ -152,6 +161,7 @@ static void acknowledge_CLI(const char* cmd) {
   JsonDocument ack;
   ack["type"] = "ack";
   ack["cmd"] = cmd;
+  ack["status"] = "OK";
 
   // Send response
   serializeJson(ack, Serial);
@@ -162,6 +172,7 @@ static void complete_data(const char* cmd) {
   JsonDocument complete;
   complete["type"] = "complete";
   complete["cmd"] = cmd;
+  complete["status"] = "OK";
 
   // Send response
   serializeJson(complete, Serial);
@@ -209,7 +220,7 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
         // Construct the response to the CLI
         // TODO: Response is constructed assuming no error is thrown. Add the case where the error is thrown.
         response["status"] = status_to_str(cmd_status);
-        response["data"]["resp_data"] = config_doc; // This is the config data the SD card contains
+        response["data"]["config_params"] = config_doc; // This is the config data the SD card contains
 
     }
     else if(strcmp(cmd, "sweep") == 0) {
@@ -223,8 +234,11 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
         // TODO: Adjust time-out. This function takes too long and the CLI times out (doesn't wait for response from firmware)
         cmd_status = conduct_sweep(sweep_name);
         
+        JsonDocument config_doc;
+        cmd_status = SD_get_config(config_doc);
+
         response["status"] = status_to_str(cmd_status);
-        response["data"]["resp_data"] = ".csv?"; 
+        response["data"]["config_params"] = config_doc; 
         
     }
     else if(strcmp(cmd, "calibrate") == 0) {
@@ -267,6 +281,7 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
         cmd_status = SD_delete_sweep(sweep_name);
         
         response["status"] = status_to_str(cmd_status);
+        response["data"]["sweep_name"] = sweep_name;
     }
     // Dev command
     else if(strcmp(cmd, "freq") == 0) { // {cmd: "freq", data: 3500} // Set output to 3500 MHz
