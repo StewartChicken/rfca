@@ -52,7 +52,11 @@
 // - .csv files are saved locally, can now begin working on EXPO GUI which will display their contents
 // - Error handling has structure but needs to be completed rigorously
 // - Calibration process needs to be done
-// - 
+//  
+// 3/20
+// - Want to add a 'view' command (with sweep name) which looks for data on local machine
+//   - If not found, offer option to search/retrieve from teensy SD?
+
 
 // Libraries
 #include <Arduino.h>
@@ -110,7 +114,7 @@ void setup() {
   ADF_spi_init();
 
   // For LogAmps
-  analogReadResolution(10);   // 10 bit resolution
+  analogReadResolution(ADC_RESOLUTION);  
 
   // GPIO config for sp8t mux
   sp8t_init();
@@ -168,6 +172,7 @@ static void acknowledge_CLI(const char* cmd) {
   Serial.println();
 }
 
+// TODO: Rename 
 static void complete_data(const char* cmd) {
   JsonDocument complete;
   complete["type"] = "complete";

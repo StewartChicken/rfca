@@ -6,7 +6,7 @@ import shlex
 import serial
 import time
 import sys
-PORT = "COM4"
+PORT = "COM7"
 BAUD = 115200
 
 # Connect to Teensy
@@ -197,7 +197,8 @@ def main():
             # Ignore empty input
             if not user_input:
                 continue
-
+            
+            # Parse terminal input, package and send to firmware, wait till response or time out
             cmd, data = parse_user_input(user_input)
             sendJson(cmd, data)
             wait_for_response()

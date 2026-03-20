@@ -53,6 +53,7 @@ static const uint8_t log_amp_pins[10] = {
 #define NUM_LOG_AMPS                10
 #define LOG_AMP_READ_DELAY          10   // ms
 #define ADC_REF_VOLTAGE             3.3  // Teensy uses a 3.3 V reference for analog inputs
+#define ADC_RESOLUTION              10   // 10-bit, max 12?
 #define ADC_MAX_VALUE               1023 // default 10-bit resolution
 
 // SP8T Bit Masks
