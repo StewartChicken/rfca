@@ -15,12 +15,35 @@ from PySide6.QtWidgets import (
 )
 
 
+CSV_COLUMNS = ["out_port", "frequency"] + [f"LA{i}" for i in range(10)]
+
+def load_sweep_data(csv_path: Path) -> pd.DataFrame:
+    df = pd.read_csv(csv_path)
+
+    missing = [col for col in CSV_COLUMNS if col not in df.columns]
+    if missing:
+        raise ValueError(f"CSV is missing required columns: {missing}")
+
+    df = df[CSV_COLUMNS].copy()
+    df["out_port"] = df["out_port"].astype(int)
+    df = df.sort_values(["out_port", "frequency"]).reset_index(drop=True)
+    return df
+
+
+def split_data_by_port(df: pd.DataFrame) -> dict[int, pd.DataFrame]:
+    port_data = {}
+    for port in sorted(df["out_port"].unique()):
+        port_data[port] = df[df["out_port"] == port].copy()
+    return port_data
 
 class SweepViewerSkeleton(QMainWindow):
-    def __init__(self):
+    def __init__(self, csv_path: Path):
         super().__init__()
         self.setWindowTitle("Sweep Viewer Skeleton")
         self.resize(1200, 700)
+
+        self.csv_path = csv_path
+        self.port_data = {}
 
         # Central widget + main verticaSl layout
         central = QWidget()
@@ -40,6 +63,7 @@ class SweepViewerSkeleton(QMainWindow):
         self.plot_widget.setLabel("bottom", "Frequency")
         self.plot_widget.setLabel("left", "Value")
         self.plot_widget.setTitle("Measurement Plot Area")
+        self.plot_widget.addLegend()
 
         # Blank placeholder curve area:
         # we don't plot anything yet; this just makes the plot region visible
@@ -48,6 +72,44 @@ class SweepViewerSkeleton(QMainWindow):
         layout.addWidget(self.tabs, stretch=0)
         layout.addWidget(self.plot_widget, stretch=1)
 
+        self.tabs.currentChanged.connect(self.on_tab_changed)
+
+        self.load_data()
+        self.on_tab_changed(0)
+    
+    def load_data(self):
+        df = load_sweep_data(self.csv_path)
+        self.port_data = split_data_by_port(df)
+
+    def clear_plot(self):
+        self.plot_widget.clear()
+        self.plot_widget.addLegend()
+
+    def plot_port_data(self, port: int):
+        self.clear_plot()
+
+        if port not in self.port_data:
+            self.plot_widget.setTitle(f"Port {port} (no data)")
+            return
+
+        df = self.port_data[port]
+        freq = df["frequency"].to_numpy()
+
+        self.plot_widget.setTitle(f"Port {port}")
+
+        for i in range(10):
+            col = f"LA{i}"
+            self.plot_widget.plot(
+                freq,
+                df[col].to_numpy(),
+                name=col,
+                pen=pg.intColor(i, hues=10),
+            )
+
+    def on_tab_changed(self, index: int):
+        port = index + 1
+        self.plot_port_data(port)
+
 
 def main():
     app = QApplication(sys.argv)
@@ -55,178 +117,32 @@ def main():
     # Optional: nicer default antialiasing for future plotting
     pg.setConfigOptions(antialias=True)
 
-    window = SweepViewerSkeleton()
-    window.show()
+    if len(sys.argv) > 1:
+        csv_path = Path(sys.argv[1])
+    else:
+        csv_path = Path("sweepdata.csv")
 
+    if not csv_path.exists():
+        QMessageBox.critical(
+            None,
+            "File Error",
+            f"Could not find CSV file:\n{csv_path}",
+        )
+        sys.exit(1)
+
+    try:
+        window = SweepViewerSkeleton(csv_path)
+    except Exception as exc:
+        QMessageBox.critical(
+            None,
+            "Load Error",
+            f"Failed to load CSV:\n{exc}",
+        )
+        sys.exit(1)
+
+    window.show()
     sys.exit(app.exec())
 
 
 if __name__ == "__main__":
     main()
-
-'''
-
-
-import sys
-import csv
-from pathlib import Path
-
-import pyqtgraph as pg
-
-from PySide6.QtWidgets import (
-    QApplication,
-    QMainWindow,
-    QWidget,
-    QVBoxLayout,
-    QTabWidget,
-    QMessageBox,
-)
-
-
-class SweepViewer(QMainWindow):
-    def __init__(self, csv_path: str):
-        super().__init__()
-        self.setWindowTitle("Sweep Viewer")
-        self.resize(1200, 700)
-
-        self.csv_path = Path(csv_path)
-        self.la_columns = [f"LA{i}" for i in range(10)]
-
-        # Data structure:
-        # {
-        #   out_port_value: {
-        #       "frequency": [...],
-        #       "LA0": [...],
-        #       ...
-        #       "LA9": [...]
-        #   },
-        #   ...
-        # }
-        self.port_data = {}
-        self.ports = []
-
-        self._load_data()
-        self._build_ui()
-        self._populate_tabs()
-        self._connect_signals()
-
-        if self.ports:
-            self.update_plot_for_current_tab()
-
-    def _load_data(self):
-        if not self.csv_path.exists():
-            raise FileNotFoundError(f"CSV file not found: {self.csv_path}")
-
-        with open(self.csv_path, "r", newline="") as f:
-            reader = csv.DictReader(f)
-
-            if reader.fieldnames is None:
-                raise ValueError("CSV file appears to have no header row.")
-
-            required_columns = ["out_port", "frequency"] + self.la_columns
-            missing = [col for col in required_columns if col not in reader.fieldnames]
-            if missing:
-                raise ValueError(f"Missing required columns: {missing}")
-
-            for row_num, row in enumerate(reader, start=2):
-                try:
-                    out_port = int(float(row["out_port"]))
-                    frequency = float(row["frequency"])
-                    la_values = {la: float(row[la]) for la in self.la_columns}
-                except ValueError as e:
-                    raise ValueError(f"Invalid numeric data on row {row_num}: {e}")
-
-                if out_port not in self.port_data:
-                    self.port_data[out_port] = {"frequency": []}
-                    for la in self.la_columns:
-                        self.port_data[out_port][la] = []
-
-                self.port_data[out_port]["frequency"].append(frequency)
-                for la in self.la_columns:
-                    self.port_data[out_port][la].append(la_values[la])
-
-        self.ports = sorted(self.port_data.keys())
-
-        if not self.ports:
-            raise ValueError("No valid data rows found in CSV.")
-
-    def _build_ui(self):
-        central = QWidget()
-        self.setCentralWidget(central)
-        layout = QVBoxLayout(central)
-
-        self.tabs = QTabWidget()
-        self.plot_widget = pg.PlotWidget()
-
-        self.plot_widget.showGrid(x=True, y=True, alpha=0.2)
-        self.plot_widget.setLabel("bottom", "Frequency")
-        self.plot_widget.setLabel("left", "LA Value")
-        self.plot_widget.setTitle("Sweep Data")
-
-        layout.addWidget(self.tabs, stretch=0)
-        layout.addWidget(self.plot_widget, stretch=1)
-
-    def _populate_tabs(self):
-        for port in self.ports:
-            tab = QWidget()
-            self.tabs.addTab(tab, f"Port {port}")
-
-    def _connect_signals(self):
-        self.tabs.currentChanged.connect(self.update_plot_for_current_tab)
-
-    def update_plot_for_current_tab(self):
-        index = self.tabs.currentIndex()
-        if index < 0 or index >= len(self.ports):
-            return
-
-        selected_port = self.ports[index]
-        port_entry = self.port_data[selected_port]
-
-        self.plot_widget.clear()
-        self.plot_widget.addLegend()
-        self.plot_widget.setTitle(f"Sweep Data - Port {selected_port}")
-
-        colors = [
-            (255, 0, 0),
-            (0, 128, 255),
-            (0, 180, 0),
-            (255, 140, 0),
-            (180, 0, 180),
-            (0, 180, 180),
-            (120, 120, 0),
-            (255, 0, 120),
-            (100, 100, 100),
-            (0, 0, 0),
-        ]
-
-        x = port_entry["frequency"]
-
-        for i, la in enumerate(self.la_columns):
-            y = port_entry[la]
-            pen = pg.mkPen(color=colors[i], width=2)
-            self.plot_widget.plot(x, y, pen=pen, name=la)
-
-
-def main():
-    app = QApplication(sys.argv)
-    pg.setConfigOptions(antialias=True)
-
-    csv_path = Path(__file__).parent / "sweepdata.csv"
-
-    try:
-        window = SweepViewer(csv_path)
-        window.show()
-        sys.exit(app.exec())
-    except Exception as e:
-        msg = QMessageBox()
-        msg.setIcon(QMessageBox.Critical)
-        msg.setWindowTitle("Error")
-        msg.setText(str(e))
-        msg.exec()
-        sys.exit(1)
-
-
-if __name__ == "__main__":
-    main()
-
-'''
