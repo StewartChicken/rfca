@@ -56,6 +56,11 @@
 // 3/20
 // - Want to add a 'view' command (with sweep name) which looks for data on local machine
 //   - If not found, offer option to search/retrieve from teensy SD?
+// 
+// 3/22
+// - GUI can display sweep data from CSV now (test_visual2.py provides a classless implementation)
+// Next: Write the 'visualize' function within test_visual2.py which can be called from a CLI loop
+//       - Need to organize where data is instantiated and where functions are defined
 
 
 // Libraries

@@ -1,12 +1,16 @@
 
 # TODO: Create consistent dependency environment (multiple libraries for 'serial')
+
+# For FW interaction
 import os
 import json
 import shlex
 import serial
 import time
 import sys
-PORT = "COM7"
+
+
+PORT = "COM4"
 BAUD = 115200
 
 # Connect to Teensy
@@ -15,6 +19,7 @@ ser = serial.Serial(PORT, BAUD, timeout=1)
 time.sleep(2)
 
 
+# CLI input
 def parse_user_input(user_input):
     parts = shlex.split(user_input) # Space-delimited
 
@@ -178,6 +183,7 @@ def processData(cmd, data):
 def processError():
     print("Error detected")
 
+
 def main():
     
     print("=== RFCA CLI ===")
@@ -200,6 +206,15 @@ def main():
             
             # Parse terminal input, package and send to firmware, wait till response or time out
             cmd, data = parse_user_input(user_input)
+
+            # Don't query firmware if cmd/data are not present
+            if (cmd == "view"):
+                print("got the view command")
+
+                path = data
+
+                continue
+
             sendJson(cmd, data)
             wait_for_response()
             

@@ -5,6 +5,7 @@ from pathlib import Path
 import pandas as pd
 import pyqtgraph as pg
 
+from PySide6.QtCore import QEventLoop
 from PySide6.QtWidgets import (
     QApplication, 
     QMainWindow, 
@@ -45,7 +46,7 @@ class SweepViewerSkeleton(QMainWindow):
         self.csv_path = csv_path
         self.port_data = {}
 
-        # Central widget + main verticaSl layout
+        # Central widget + main vertical layout
         central = QWidget()
         self.setCentralWidget(central)
         layout = QVBoxLayout(central)
@@ -112,34 +113,11 @@ class SweepViewerSkeleton(QMainWindow):
 
 
 def main():
-    app = QApplication(sys.argv)
+    app = QApplication([])
+    csv_path = Path("sweep_test.csv")
 
-    # Optional: nicer default antialiasing for future plotting
-    pg.setConfigOptions(antialias=True)
-
-    if len(sys.argv) > 1:
-        csv_path = Path(sys.argv[1])
-    else:
-        csv_path = Path("sweepdata.csv")
-
-    if not csv_path.exists():
-        QMessageBox.critical(
-            None,
-            "File Error",
-            f"Could not find CSV file:\n{csv_path}",
-        )
-        sys.exit(1)
-
-    try:
-        window = SweepViewerSkeleton(csv_path)
-    except Exception as exc:
-        QMessageBox.critical(
-            None,
-            "Load Error",
-            f"Failed to load CSV:\n{exc}",
-        )
-        sys.exit(1)
-
+    window = SweepViewerSkeleton(csv_path)
+   
     window.show()
     sys.exit(app.exec())
 

@@ -1,7 +1,7 @@
 {
-    "sp8t_out_ports": [1, 2, 6],
-    "start_freq": 2000,
-    "stop_freq": 3000,
-    "step_size": 100,
+    "sp8t_out_ports": [1, 2, 3],
+    "start_freq": 1000,
+    "stop_freq": 4000,
+    "step_size": 200,
     "delay_ms": 50
 }
