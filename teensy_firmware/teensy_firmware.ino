@@ -61,6 +61,11 @@
 // - GUI can display sweep data from CSV now (test_visual2.py provides a classless implementation)
 // Next: Write the 'visualize' function within test_visual2.py which can be called from a CLI loop
 //       - Need to organize where data is instantiated and where functions are defined
+// 
+// 3/24
+// - Instead of a separate 'view' command, I'll just incorporate the plot through the 'retrieve' command 
+//   - (it'll auto display once data is loaded from firmware)
+// ^^^ This was done
 
 
 // Libraries

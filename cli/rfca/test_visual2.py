@@ -13,7 +13,6 @@ from PySide6.QtWidgets import (
     QWidget, 
     QVBoxLayout, 
     QTabWidget,
-    QMessageBox
 )
 
 
@@ -44,8 +43,6 @@ def visualize():
 def main():
     
     app = QApplication([])
-    csv_path = Path("sweep_test.csv")
-    port_data = split_data_by_port(load_sweep_data(csv_path))
 
     GUI = QMainWindow()
     GUI.setWindowTitle("RFCA GUI")
@@ -73,6 +70,9 @@ def main():
 
     layout.addWidget(GUI.tabs, stretch=0)
     layout.addWidget(GUI.plot_widget, stretch=1)
+
+    csv_path = Path("sweep_test.csv")
+    port_data = split_data_by_port(load_sweep_data(csv_path))
 
     # Port tab switch functions
     def plot_port_data(port: int):
