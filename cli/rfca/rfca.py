@@ -9,6 +9,7 @@ import serial
 import time
 import sys
 
+# For GUI
 from pathlib import Path
 
 import pandas as pd
@@ -22,9 +23,9 @@ from PySide6.QtWidgets import (
     QTabWidget,
 )
 
-
+# TODO: Make COM selection dynamic
 PORT = "COM4"
-BAUD = 115200
+BAUD = 115200 # BAUD is irrelevant for virtual COM (I just chose 115200 because it's somewhat standard) 
 
 # Connect to Teensy
 print("Connecting to Firmware...")
@@ -67,7 +68,7 @@ def initGUI():
 
     return GUI
 
-CSV_COLUMNS = ["out_port", "frequency"] + [f"LA{i}" for i in range(10)]
+CSV_COLUMNS = ["out_port", "frequency"] + [f"LA{i}" for i in range(10)] # data .csv structure
 csv_path = None # Empty file path for now (global)
 GUI = initGUI()
 
@@ -122,7 +123,7 @@ def split_data_by_port(df: pd.DataFrame) -> dict[int, pd.DataFrame]:
         port_data[port] = df[df["out_port"] == port].copy()
     return port_data
 
-##### GUI functions #####
+###^^ GUI functions ^^###
 #########################
 
 
@@ -138,7 +139,7 @@ def parse_user_input(user_input):
     elif len(parts) == 2:
         arg = parts[1]
 
-        # Only the 'config' commands needs special handling as it sends a JSON file to the firmware
+        # Only the 'config' commands needs special handling as it sends a config.json file to the firmware
         if cmd == "config":  
             config_file = arg
 
@@ -175,8 +176,7 @@ def wait_for_response(timeout=15):
 
     spinner = ["|", "/", "-", "\\"]
     spinner_idx = 0
-    start_time = time.time()
-
+    
     start_time = time.time()
 
     while (time.time() - start_time) < timeout:
@@ -230,7 +230,7 @@ def processResponse(response_data):
         processError() # TODO - this function is a blank placeholder
         return
     
-    # If no errors, process the response data based on the type
+    # If no errors, process the response data based on CMD type
     if (response_data.get("type") == "data"):
         cmd = response_data.get("cmd")
         data = response_data.get("data")
@@ -245,6 +245,7 @@ def processData(cmd, data):
         print('[INFO] Configured RFCA with the following parameters:')
         print(f'[INFO] {config_params}')
     elif(cmd == "calibrate"):
+        # TODO
         pass
     elif(cmd == "sweep"):
         config_params = data.get("config_params")
@@ -262,7 +263,7 @@ def processData(cmd, data):
 
             print('\n')
 
-    # Retrieve a .csv file from the firmware and display its chart
+    # Retrieve a .csv file from the firmware, save it locally and display its data
     elif(cmd == "retrieve"):
         sweep_name = data.get("sweep_name")
         sweep_data = data.get("sweep_data")
@@ -293,6 +294,7 @@ def processData(cmd, data):
         print(f"[INFO] Deleted {sweep_name} from the firmware")
     else:
         # This shouldn't happen TODO: Throw error?
+        print("[ERROR] Unrecognized CMD")
         print(cmd)
 
 # TODO
