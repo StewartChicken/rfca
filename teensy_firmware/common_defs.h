@@ -6,10 +6,10 @@
 // ===== Pin Definitions =====
 
 // ADF5356
-#define ADF_LE                      10 // CS pin (repurposed)
-#define ADF_DATA                    11 // MOSI for SPI
-#define ADF_MISO                    12 // Not Used (Registers are write only)
-#define ADF_CLK                     13 
+#define ADF_LE                      37 // SPI0 CS  
+#define ADF_DATA                    11 // SPI0 MOSI 
+#define ADF_MISO                    12 // SPI0 MISO Not Used (Registers are write only)
+#define ADF_CLK                     13 // SPI0 CLK
 
 // SD card
 #define SD_CS                       BUILTIN_SDCARD  // For Teensy 4.1 SDIO slot
@@ -87,10 +87,10 @@ typedef struct {
     uint32_t delay_ms;              // ms
 } Config_t;
 
-// TODO: make this (maybe just make it a 2D array? uint32_t loss[8][10], 8 sp8t for 10 log amp, 80 total values)
-typedef struct {
 
-} Calibrate_t;
+#define NUM_CONFIG_VALUES 17 // (1, 1) thru (8, 1) and (1, 1) thru (1, 10)   -> w/ (out, in)
+#define NUM_FREQ 35 // 800 MHz to 6.8 MHz w/ 100 MHz steps
+float cal_data[NUM_CONFIG_VALUES][NUM_FREQ]; 
 
 
 // Error handling

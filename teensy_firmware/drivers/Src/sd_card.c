@@ -64,6 +64,61 @@ status_t SD_init_default_config() {
 }
 
 /**
+ * @brief Check if the calibration file exists
+ * @return: bool
+ */
+bool SD_does_cal_data_exist() {
+  return SD.exists(CAL_PATH);
+}
+
+
+/**
+ * @brief Create the calibration file with default values (all zero)
+ * @return: status_t
+ */
+status_t SD_init_default_cal_data() {
+    File cal;
+    size_t bytes_written = 0; // For error handling
+    
+    SD.remove(CAL_PATH);
+    cal = SD.open(CAL_PATH, FILE_WRITE);
+    if(!cal)
+      return STATUS_ERR_SD_OPEN_FAIL;
+
+    // Default values are all zeroes
+    bytes_written += cal.println("{");
+
+    bytes_written += cal.println("\"out1_in1\":0,");
+    bytes_written += cal.println("\"out2_in1\":0,");
+    bytes_written += cal.println("\"out3_in1\":0,");
+    bytes_written += cal.println("\"out4_in1\":0,");
+    bytes_written += cal.println("\"out5_in1\":0,");
+    bytes_written += cal.println("\"out6_in1\":0,");
+    bytes_written += cal.println("\"out7_in1\":0,");
+    bytes_written += cal.println("\"out8_in1\":0,");
+
+    bytes_written += cal.println("\"out1_in2\":0,");
+    bytes_written += cal.println("\"out1_in3\":0,");
+    bytes_written += cal.println("\"out1_in4\":0,");
+    bytes_written += cal.println("\"out1_in5\":0,");
+    bytes_written += cal.println("\"out1_in6\":0,");
+    bytes_written += cal.println("\"out1_in7\":0,");
+    bytes_written += cal.println("\"out1_in8\":0,");
+    bytes_written += cal.println("\"out1_in9\":0,");
+    bytes_written += cal.println("\"out1_in10\":0");        
+
+    bytes_written += cal.println("}");
+
+    cal.flush();
+    cal.close();
+
+    if(bytes_written == 0)
+      return STATUS_ERR_SD_WRITE_FAIL;
+
+  return STATUS_OK;
+}
+
+/**
  * @brief Check if the data directory exists
  * @return: bool
  * TODO: Error handling

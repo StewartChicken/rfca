@@ -65,7 +65,21 @@
 // 3/24
 // - Instead of a separate 'view' command, I'll just incorporate the plot through the 'retrieve' command 
 //   - (it'll auto display once data is loaded from firmware)
-// ^^^ This was done
+// ^^^ This was completed
+// 
+// Checkin (3/24):
+// - Done:
+//   - EXPO GUI
+//   - Config/sweep process
+//   - Teensy/CLI communication
+// - TODO:
+//   - Cal
+//   - Robust Error Handling 
+// 
+//  Started working on the cal process
+//   - Created firmware data structure to store cal data
+//   - Created JSON on SD to persist cal data
+//   - TODO: Cal config data? 
 
 
 // Libraries
@@ -414,6 +428,8 @@ static status_t conduct_sweep(const char* sweep_name) {
         // Convert raw ADC value to voltage
         float voltage = (raw * ADC_REF_VOLTAGE) / ADC_MAX_VALUE;
         data[i + 2] = voltage;
+
+        // TODO: data[i + 2] -= calData;
 
         delay(LOG_AMP_READ_DELAY);
       }

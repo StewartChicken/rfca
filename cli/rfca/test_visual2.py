@@ -37,9 +37,6 @@ def split_data_by_port(df: pd.DataFrame) -> dict[int, pd.DataFrame]:
         port_data[port] = df[df["out_port"] == port].copy()
     return port_data
 
-def visualize():
-    pass
-
 def main():
     
     app = QApplication([])

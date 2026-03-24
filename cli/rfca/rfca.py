@@ -139,7 +139,7 @@ def parse_user_input(user_input):
     elif len(parts) == 2:
         arg = parts[1]
 
-        # Only the 'config' commands needs special handling as it sends a config.json file to the firmware
+        # The 'config' commands needs special handling as it sends a config.json file to the firmware
         if cmd == "config":  
             config_file = arg
 
@@ -149,6 +149,8 @@ def parse_user_input(user_input):
             except Exception as e:
                 print(f"Failed to read/parse JSON file: {e}")
                 return None, None # TODO, check this error handling
+        if cmd == "calibrate":
+            pass
         else:
             data = arg
 

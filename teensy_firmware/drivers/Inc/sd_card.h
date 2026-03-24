@@ -17,12 +17,16 @@
 
 // The config file and sweep data will be stored at these paths on the SD card
 static const char* CONFIG_PATH = "/config.json";
+static const char* CAL_PATH = "/cal.json";
 static const char* DATA_PATH = "/data";
+
 
 // SD Init functions
 status_t SD_init(void);
 bool SD_does_config_exist(void);
 status_t SD_init_default_config(void);
+bool SD_does_cal_data_exist(void);
+status_t SD_init_default_cal_data(void);
 bool SD_does_data_dir_exist(void);
 status_t SD_init_data_dir(void);
 

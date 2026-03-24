@@ -13,9 +13,9 @@ void ADF_spi_init() {
   digitalWrite(ADF_LE, HIGH); 
 
   // Begin Teensy4.1 SPI0
-  // GPIO 10 - CS
+  // GPIO 37 - CS
   // GPIO 11 - MOSI
-  // GPIO 12 - MISO
+  // GPIO 12 - MISO (not used)
   // GPIO 13 - SCK
   SPI.begin();
 }
