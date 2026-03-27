@@ -22,6 +22,13 @@ status_t SD_init() {
   if(SD_status != STATUS_OK)
     return SD_status;
 
+  // Initialize cal.json if dne
+  if(!SD_does_cal_data_exist())
+    SD_status = SD_init_default_cal_data();
+
+  if(SD_status != STATUS_OK)
+    return SD_status;
+
   // Initialize ./data dir if dne
   if(!SD_does_data_dir_exist())
         SD_status = SD_init_data_dir();

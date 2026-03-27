@@ -160,7 +160,6 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
         // First we pull the data from the SD card
         JsonDocument config_doc;
         cmd_status = SD_get_config(config_doc);
-        // TODO: Handle error
 
         // Assuming no error is thrown, proceed to update the struct
         sweep_config = update_config_struct(config_doc);
@@ -353,6 +352,7 @@ static status_t conduct_sweep(const char* sweep_name) {
         delay(LOG_AMP_READ_DELAY);
       }
 
+      // Adds the new row of data to the corresponding csv
       // TODO: Error handling
       SD_add_data(sweep_name, data);
 

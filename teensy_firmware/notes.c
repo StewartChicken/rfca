@@ -93,3 +93,14 @@
 // Also need to implement the signal which outlines unexpected measurement
 // - Maybe we have the sweep command send a JSON file with expected loss values?
 // - The Teensy FW would then return data comparing expected with measurement in the response
+//
+// Flow: 
+// CLI cal command: 'calibrate out in'
+//  - This saves cal data for a specified sp8t output and log-amp input to the SD card (1 of 17 needed)
+//  - The frequencies at which the ports are calibrated are selected based on the config file
+//    - The 'config' command needs to be run before any 'calibrate' commands 
+//  - The firmware also retains a cal_data buffer which stores the information in RAM (so the SD card doesn't have to be accessed)
+//    - This buffer is populated on boot by reading the SD card
+//  - When a sweep is conducted, cal. information is subtracted from measured data before being saved as sweep information. 
+//
+// Update config command to bypass argument: Just update config.json file 

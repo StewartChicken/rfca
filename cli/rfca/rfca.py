@@ -133,7 +133,7 @@ def parse_user_input(user_input):
     parts = shlex.split(user_input) # Space-delimited
 
     cmd = parts[0]
-
+    
     if len(parts) == 1:
         data = None
     elif len(parts) == 2:
@@ -149,7 +149,7 @@ def parse_user_input(user_input):
             except Exception as e:
                 print(f"Failed to read/parse JSON file: {e}")
                 return None, None # TODO, check this error handling
-        if cmd == "calibrate":
+        elif cmd == "calibrate":
             pass
         else:
             data = arg
