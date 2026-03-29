@@ -32,13 +32,15 @@ status_t SD_init_data_dir(void);
 
 // Data update functions
 status_t SD_update_config(const JsonObject& doc);
+status_t SD_update_cal(const JsonObject& doc);
 status_t SD_add_sweep(const char* sweep_name); // Sweep name
 status_t SD_add_data(const char* sweep_name, const float data[12]);
 status_t SD_delete_sweep(const char* sweep_name);
 // TODO: void SD_add_sweep_data(uint32_t, uint32_t); // Time interval, Voltage
 
 // Data retrieval functions
-status_t SD_get_config(JsonDocument& doc);// Retrieve the config.json file from the SD card
+status_t SD_get_config(JsonDocument& doc); // Retrieve the config.json file from the SD card
+status_t SD_get_cal(JsonDocument& doc); // Retrieve the cal.json file from the SD card
 status_t SD_get_filenames(char filenames[][64], const uint8_t maxFiles, uint8_t* file_count); // TODO: refactor
 status_t SD_get_sweep_csv(const char* sweep_name, String &csv_out);
 

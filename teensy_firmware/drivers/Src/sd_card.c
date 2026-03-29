@@ -95,24 +95,24 @@ status_t SD_init_default_cal_data() {
     // Default values are all zeroes
     bytes_written += cal.println("{");
 
-    bytes_written += cal.println("\"out1_in1\":0,");
-    bytes_written += cal.println("\"out2_in1\":0,");
-    bytes_written += cal.println("\"out3_in1\":0,");
-    bytes_written += cal.println("\"out4_in1\":0,");
-    bytes_written += cal.println("\"out5_in1\":0,");
-    bytes_written += cal.println("\"out6_in1\":0,");
-    bytes_written += cal.println("\"out7_in1\":0,");
-    bytes_written += cal.println("\"out8_in1\":0,");
+    bytes_written += cal.println("\"out1_in1\":[0],");
+    bytes_written += cal.println("\"out2_in1\":[0],");
+    bytes_written += cal.println("\"out3_in1\":[0],");
+    bytes_written += cal.println("\"out4_in1\":[0],");
+    bytes_written += cal.println("\"out5_in1\":[0],");
+    bytes_written += cal.println("\"out6_in1\":[0],");
+    bytes_written += cal.println("\"out7_in1\":[0],");
+    bytes_written += cal.println("\"out8_in1\":[0],");
 
-    bytes_written += cal.println("\"out1_in2\":0,");
-    bytes_written += cal.println("\"out1_in3\":0,");
-    bytes_written += cal.println("\"out1_in4\":0,");
-    bytes_written += cal.println("\"out1_in5\":0,");
-    bytes_written += cal.println("\"out1_in6\":0,");
-    bytes_written += cal.println("\"out1_in7\":0,");
-    bytes_written += cal.println("\"out1_in8\":0,");
-    bytes_written += cal.println("\"out1_in9\":0,");
-    bytes_written += cal.println("\"out1_in10\":0");        
+    bytes_written += cal.println("\"out1_in2\":[0],");
+    bytes_written += cal.println("\"out1_in3\":[0],");
+    bytes_written += cal.println("\"out1_in4\":[0],");
+    bytes_written += cal.println("\"out1_in5\":[0],");
+    bytes_written += cal.println("\"out1_in6\":[0],");
+    bytes_written += cal.println("\"out1_in7\":[0],");
+    bytes_written += cal.println("\"out1_in8\":[0],");
+    bytes_written += cal.println("\"out1_in9\":[0],");
+    bytes_written += cal.println("\"out1_in10\":[0]");        
 
     bytes_written += cal.println("}");
 
@@ -165,6 +165,33 @@ status_t SD_update_config(const JsonObject& cfg) {
     return STATUS_ERR_SD_OPEN_FAIL;
 
   bytes_written = serializeJson(cfg, f);  
+  f.flush();
+  f.close();
+
+  if (bytes_written == 0) {
+    return STATUS_ERR_SD_WRITE_FAIL;
+  }
+
+  return STATUS_OK;
+}
+
+/**
+ * @brief Given a cal JSON file, store it on the SD card
+ * @param cfg - File to write to SD
+ * @return: status_t
+ * TODO: Error handling
+ */
+status_t SD_update_cal(const JsonObject& cal) {
+  File f;
+  size_t bytes_written;
+
+  // First, delete the old config.json file
+  SD.remove(CAL_PATH);
+  f = SD.open(CAL_PATH, FILE_WRITE);
+  if(!f)
+    return STATUS_ERR_SD_OPEN_FAIL;
+
+  bytes_written = serializeJson(cal, f);  
   f.flush();
   f.close();
 
@@ -259,7 +286,7 @@ status_t SD_delete_sweep(const char* sweep_name)
   bool success;
 
   char file_path[256];
-  int n = snprintf(file_path, sizeof(file_path), "%s/%s", DATA_PATH, sweep_name);
+  int n = snprintf(file_path, sizeof(file_path), "%s/%s.csv", DATA_PATH, sweep_name);
 
   if (n <= 0 || n >= (int)sizeof(file_path)) {
     // truncated or formatting error
@@ -297,6 +324,27 @@ status_t SD_get_config(JsonDocument& doc) {
 
   DeserializationError err = deserializeJson(doc, config);
   config.close();
+  if(err) {
+    return STATUS_ERR_SD_READ_FAIL;
+  }
+
+  return STATUS_OK;
+}
+
+/**
+ * @brief Reads cal from SD card and copies to the argument
+ * @param doc - Receives the SD data
+ * @return: status_t
+ * TODO: Error handling
+ */
+status_t SD_get_cal(JsonDocument& doc) {
+  File cal = SD.open(CAL_PATH, FILE_READ);
+  if(!cal) {
+    return STATUS_ERR_SD_OPEN_FAIL;
+  }
+
+  DeserializationError err = deserializeJson(doc, cal);
+  cal.close();
   if(err) {
     return STATUS_ERR_SD_READ_FAIL;
   }

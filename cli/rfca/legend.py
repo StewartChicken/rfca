@@ -21,6 +21,11 @@ from PySide6.QtWidgets import (
     QWidget, 
     QVBoxLayout, 
     QTabWidget,
+    QHBoxLayout,
+    QCheckBox,
+    QLabel,
+    QScrollArea,
+    QFrame,
 )
 
 # TODO: Make COM selection dynamic
@@ -36,23 +41,41 @@ time.sleep(2)
 ##############################
 ##### GUI data/functions #####
 
+from PySide6.QtWidgets import QFrame
+
+class ColorSwatch(QFrame):
+    def __init__(self, color):
+        super().__init__()
+        self.setFixedSize(14, 14)
+
+        # Convert pyqtgraph color → Qt color
+        qcolor = pg.mkColor(color)
+
+        self.setStyleSheet(f"""
+            background-color: {qcolor.name()};
+            border: 1px solid black;
+        """)
+
 def initGUI():
     # Init GUI
-    app = QApplication([])
+    app = QApplication.instance() or QApplication([])
     GUI = QMainWindow()
     GUI.setWindowTitle("RFCA GUI")
-    GUI.resize(1200, 700)
+    GUI.resize(1400, 800)
 
     # Main widget
     central = QWidget()
     GUI.setCentralWidget(central)
-    layout = QVBoxLayout(central)
+    main_layout = QVBoxLayout(central)
 
     # Tabs
     GUI.tabs = QTabWidget()
     for i in range(1, 9):
         tab = QWidget()
         GUI.tabs.addTab(tab, f"Port {i}")
+
+    # Plot + legend row
+    content_row = QHBoxLayout()
 
     # Central plot
     GUI.plot_widget = pg.PlotWidget()
@@ -61,12 +84,90 @@ def initGUI():
     GUI.plot_widget.setLabel("bottom", "Frequency")
     GUI.plot_widget.setLabel("left", "Value")
     GUI.plot_widget.setTitle("Measurement Plot Area")
-    GUI.plot_widget.addLegend()
 
-    layout.addWidget(GUI.tabs, stretch=0)
-    layout.addWidget(GUI.plot_widget, stretch=1)
+    # Custom legend panel
+    GUI.legend_container = QWidget()
+    GUI.legend_layout = QVBoxLayout(GUI.legend_container)
+    GUI.legend_layout.setContentsMargins(8, 8, 8, 8)
+    GUI.legend_layout.setSpacing(6)
+
+    legend_title = QLabel("Traces")
+    GUI.legend_layout.addWidget(legend_title)
+
+    GUI.legend_scroll = QScrollArea()
+    GUI.legend_scroll.setWidgetResizable(True)
+
+    GUI.legend_content = QWidget()
+    GUI.legend_content_layout = QVBoxLayout(GUI.legend_content)
+    GUI.legend_content_layout.setContentsMargins(4, 4, 4, 4)
+    GUI.legend_content_layout.setSpacing(4)
+
+    GUI.legend_scroll.setWidget(GUI.legend_content)
+    GUI.legend_layout.addWidget(GUI.legend_scroll)
+
+    # Store currently plotted items + controls
+    GUI.trace_items = {}
+    GUI.trace_checkboxes = {}
+
+    content_row.addWidget(GUI.plot_widget, stretch=1)
+    content_row.addWidget(GUI.legend_container, stretch=0)
+
+    main_layout.addWidget(GUI.tabs, stretch=0)
+    main_layout.addLayout(content_row, stretch=1)
 
     return GUI
+
+def clear_layout(layout):
+    while layout.count():
+        item = layout.takeAt(0)
+        widget = item.widget()
+        child_layout = item.layout()
+
+        if widget is not None:
+            widget.deleteLater()
+        elif child_layout is not None:
+            clear_layout(child_layout)
+
+
+def rebuild_legend():
+    clear_layout(GUI.legend_content_layout)
+    GUI.trace_checkboxes.clear()
+
+    if not GUI.trace_items:
+        label = QLabel("No traces")
+        GUI.legend_content_layout.addWidget(label)
+        GUI.legend_content_layout.addStretch()
+        return
+
+    for name, (plot_item, color) in GUI.trace_items.items():
+
+        row = QWidget()
+        row_layout = QHBoxLayout(row)
+        row_layout.setContentsMargins(2, 2, 2, 2)
+        row_layout.setSpacing(6)
+
+        # Color box
+        swatch = ColorSwatch(color)
+
+        # Checkbox
+        checkbox = QCheckBox(name)
+        checkbox.setChecked(True)
+
+        def make_toggle(item):
+            def toggle(state):
+                item.setVisible(bool(state))
+            return toggle
+
+        checkbox.toggled.connect(make_toggle(plot_item))
+        GUI.trace_checkboxes[name] = checkbox
+
+        row_layout.addWidget(swatch)
+        row_layout.addWidget(checkbox)
+        row_layout.addStretch()
+
+        GUI.legend_content_layout.addWidget(row)
+
+    GUI.legend_content_layout.addStretch()
 
 CSV_COLUMNS = ["out_port", "frequency"] + [f"LA{i}" for i in range(10)] # data .csv structure
 csv_path = None # Empty file path for now (global)
@@ -75,10 +176,11 @@ GUI = initGUI()
 # Port tab switch functions
 def plot_port_data(port: int, port_data):
     GUI.plot_widget.clear()
-    GUI.plot_widget.addLegend()
+    GUI.trace_items.clear()
 
     if port not in port_data:
         GUI.plot_widget.setTitle(f"Port {port} (no data)")
+        rebuild_legend()
         return
 
     df = port_data[port]
@@ -88,12 +190,19 @@ def plot_port_data(port: int, port_data):
 
     for i in range(10):
         col = f"LA{i}"
-        GUI.plot_widget.plot(
+        color = pg.intColor(i, hues=10)
+
+        item = GUI.plot_widget.plot(
             freq,
             df[col].to_numpy(),
             name=col,
-            pen=pg.intColor(i, hues=10),
+            pen=color,
         )
+
+        # Store BOTH item + color
+        GUI.trace_items[col] = (item, color)
+
+    rebuild_legend()
 
 def on_tab_changed(index: int):
     port = index + 1
@@ -122,6 +231,7 @@ def split_data_by_port(df: pd.DataFrame) -> dict[int, pd.DataFrame]:
     for port in sorted(df["out_port"].unique()):
         port_data[port] = df[df["out_port"] == port].copy()
     return port_data
+
 
 ###^^ GUI functions ^^###
 #########################

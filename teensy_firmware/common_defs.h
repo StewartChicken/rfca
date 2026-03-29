@@ -2,11 +2,9 @@
 #ifndef _COMMON_DEFS_H
 #define _COMMON_DEFS_H
 
-// ===========================
-// ===== Pin Definitions =====
 
 // ADF5356
-#define ADF_LE                      37 // SPI0 CS  
+#define ADF_LE                      36 // SPI0 CS  
 #define ADF_DATA                    11 // SPI0 MOSI 
 #define ADF_MISO                    12 // SPI0 MISO Not Used (Registers are write only)
 #define ADF_CLK                     13 // SPI0 CLK
@@ -40,21 +38,11 @@ static const uint8_t log_amp_pins[10] = {
 };
 
 // SP8T
-#define SP8T_PIN_ENABLE             2
-#define SP8T_PIN_LS                 3
-#define SP8T_PIN_V3                 4
+#define SP8T_PIN_LS                 2
+#define SP8T_PIN_ENABLE             3
+#define SP8T_PIN_V1                 4
 #define SP8T_PIN_V2                 5
-#define SP8T_PIN_V1                 6 
-
-// === End Pin Definitions ===
-// ===========================
-
-// LogAmp Config
-#define NUM_LOG_AMPS                10
-#define LOG_AMP_READ_DELAY          10   // ms
-#define ADC_REF_VOLTAGE             3.3  // Teensy uses a 3.3 V reference for analog inputs
-#define ADC_RESOLUTION              10   // 10-bit, max 12?
-#define ADC_MAX_VALUE               1023 // default 10-bit resolution
+#define SP8T_PIN_V3                 6 
 
 // SP8T Bit Masks
 #define SP8T_NUM_PORTS              8
@@ -63,8 +51,12 @@ static const uint8_t log_amp_pins[10] = {
 #define SP8T_V3_MSK                 0x4 // 0x4 = 0b 0100
 
 
-// DEBUG (dev)
-#define ENABLE_DEBUG_PRINTS 0 // This needs to be 0 when using the CLI to communicate with the Teensy
+// LogAmp Config
+#define NUM_LOG_AMPS                10
+#define LOG_AMP_READ_DELAY          5   // ms
+#define ADC_REF_VOLTAGE             3.3  // Teensy uses a 3.3 V reference for analog inputs
+#define ADC_RESOLUTION              10   // 10-bit, max 12?
+#define ADC_MAX_VALUE               1023 // default 10-bit resolution
 
 typedef enum {
     UNDEF_PORT  = -1,
@@ -126,5 +118,9 @@ const char* status_to_str(status_t s)
 
     }
 }
+
+// DEBUG (dev)
+#define ENABLE_DEBUG_PRINTS 0 // This needs to be 0 when using the CLI to communicate with the Teensy
+#define ENABLE_CALIBRATION  1 // Determines if calibration data is accounted for when recording loss measurements
 
 #endif // _COMMON_DEFS_H

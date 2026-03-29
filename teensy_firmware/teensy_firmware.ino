@@ -28,6 +28,9 @@ static void print_json(const JsonDocument& doc) __attribute__((unused));
 // Defined in common_defs.h
 static Config_t sweep_config;
 
+// Calibration data stored on SD
+static JsonDocument global_cal_doc;
+
 // Variables to process incoming data
 // TODO: Cleanup
 static const size_t BUFFER_SIZE = 10 * 1024; // 10 KB Max input string (for now)
@@ -52,6 +55,9 @@ void setup() {
   JsonDocument config_doc;
   global_status = SD_get_config(config_doc);
   sweep_config = update_config_struct(config_doc);
+
+  // Cal data for our device
+  global_status = SD_get_cal(global_cal_doc);
 
   // Communication with ADF5356
   ADF_spi_init();
@@ -157,7 +163,7 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
         // retrieve the updated config from the SD card and use its data to update
         // the sweep_config struct.
 
-        // First we pull the data from the SD card
+        // First we pull the config data from the SD card
         JsonDocument config_doc;
         cmd_status = SD_get_config(config_doc);
 
@@ -168,6 +174,48 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
         // TODO: Response is constructed assuming no error is thrown. Add the case where the error is thrown.
         response["status"] = status_to_str(cmd_status);
         response["data"]["config_params"] = config_doc; // This is the config data the SD card contains
+
+    }
+    else if(strcmp(cmd, "calibrate") == 0) {
+        
+        JsonArray ports = data.as<JsonArray>(); // Contains port information [out, in]
+
+        sp8t_port_t out = ports[0]; // Output of SP8T (1-8)
+        uint8_t in = ports[1];  // Input of Log-Amp (1-10)
+
+        char key[20];
+        snprintf(key, sizeof(key), "out%d_in%d", out, in);
+
+        // First we pull the data from the SD card
+        JsonDocument cal_doc;
+        cmd_status = SD_get_cal(cal_doc);
+        JsonObject cal = cal_doc.as<JsonObject>();
+        JsonArray frequencies = cal[key].to<JsonArray>();
+
+        frequencies.clear();
+        sp8t_enablePort(out); // We're only using one port per calibrate command
+
+        // Cal process
+        uint32_t curr_freq = 800;  // Start at 800 MHz
+        uint32_t step = 100;       // 100 MHz steps
+        while(curr_freq <= 6800) { // Loop through 6.8 GHz
+
+          ADF_write_freq(curr_freq);
+
+          int raw = analogRead(log_amp_pins[in - 1]); // log_amp_pins indexed (0-9)
+
+          // Convert raw ADC value to voltage
+          float voltage = (raw * ADC_REF_VOLTAGE) / ADC_MAX_VALUE;
+          frequencies.add(voltage);
+
+          curr_freq += step;
+        }
+
+        cmd_status = SD_update_cal(cal); // Write to SD
+        cmd_status = SD_get_cal(global_cal_doc); // Read from SD and write to global
+        
+        response["status"] = status_to_str(cmd_status);
+        response["data"]["cal_data"] = cal; // This is the config data the SD card contains
 
     }
     else if(strcmp(cmd, "sweep") == 0) {
@@ -188,10 +236,6 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
         response["data"]["config_params"] = config_doc; 
         
     }
-    else if(strcmp(cmd, "calibrate") == 0) {
-        // TODO: Calibrate lol
-        // Pass for now
-    }
     else if(strcmp(cmd, "list") == 0) {
         const uint8_t MAX_FILES = 20;
         char filenames[MAX_FILES][64];
@@ -208,14 +252,12 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
         for (uint8_t i = 0; i < file_count; ++i) {
             arr.add(filenames[i]);  // duplicates the C-string into the doc
         }
-
     }
     else if(strcmp(cmd, "retrieve") == 0) {
         const char *sweep_name = data.as<const char*>();
 
         String csv_data;
 
-        // Un-implemented for now
         cmd_status = SD_get_sweep_csv(sweep_name, csv_data);
 
         response["status"] = "OK";
@@ -304,6 +346,12 @@ static status_t conduct_sweep(const char* sweep_name) {
   uint32_t step_size = sweep_config.step_size;
   uint32_t delay_ms = sweep_config.delay_ms; // Delay between frequencies
 
+  JsonDocument progress;
+
+  progress["type"] = "progress";
+  progress["cmd"] = "sweep";
+  progress["status"] = status_to_str(STATUS_OK);
+
 #if ENABLE_DEBUG_PRINTS
   Serial.println("Sweep Config Values:");
   Serial.print("start_freq: ");
@@ -345,9 +393,10 @@ static status_t conduct_sweep(const char* sweep_name) {
 
         // Convert raw ADC value to voltage
         float voltage = (raw * ADC_REF_VOLTAGE) / ADC_MAX_VALUE;
+#if ENABLE_CALIBRATION
+        voltage -= get_cal_delta(port, i, curr_freq); // output port, input port, current frequency
+#endif
         data[i + 2] = voltage;
-
-        // TODO: data[i + 2] -= calData;
 
         delay(LOG_AMP_READ_DELAY);
       }
@@ -355,6 +404,11 @@ static status_t conduct_sweep(const char* sweep_name) {
       // Adds the new row of data to the corresponding csv
       // TODO: Error handling
       SD_add_data(sweep_name, data);
+
+      // Send progress report
+      progress["data"]["frequency"] = curr_freq;
+      serializeJson(progress, Serial);
+      Serial.println();
 
       curr_freq += step_size;
       delay(delay_ms);
@@ -398,6 +452,50 @@ static Config_t update_config_struct(const JsonDocument& config) {
     config_struct.delay_ms = config["delay_ms"];
 
     return config_struct;
+}
+
+/**
+ * @brief Return the cal data for a given in/out port pair and a frequency
+ * @param out SP8T output port
+ * @param in  LogAmp input port
+ * @param frequency In MHz
+ * @return: float - cal info (voltage offset)
+ * TODO: Error handling
+ */
+float get_cal_delta(uint8_t out, uint8_t in, uint32_t frequency) {
+
+  uint32_t freq = frequency;
+
+  // Convert 'frequency' to an index
+  // 800 MHz  = 0
+  // 900 MHz  = 1
+  // 1000 MHz = 2
+  // ...
+  // 6700 MHz = 59
+  // 6800 MHz = 60
+  uint8_t index;
+  
+  // Clamp
+  if (freq < 800)  freq = 800;
+  if (freq > 6800) freq = 6800;
+
+  // Get index 
+  uint32_t rounded = ((freq + 50) / 100) * 100;
+  index = (rounded - 800) / 100;
+
+  // cal = (1, in) - [(1, 1) - (out, 1)]
+  char in_key[20];
+  snprintf(in_key, sizeof(in_key), "out1_in%d", in);
+  char out_key[20];
+  snprintf(out_key, sizeof(out_key), "out%d_in1", out);
+  char one_key[20] = "out1_in1";
+  
+  //JsonArray frequencies = global_cal_doc[key].to<JsonArray>();
+  float in_freq = (float)(global_cal_doc[in_key].to<JsonArray>()[index]);
+  float out_freq = (float)(global_cal_doc[out_key].to<JsonArray>()[index]);
+  float one_freq = (float)(global_cal_doc[one_key].to<JsonArray>()[index]);
+
+  return in_freq - (one_freq - out_freq);
 }
 
 /**
