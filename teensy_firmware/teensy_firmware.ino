@@ -56,7 +56,7 @@ void setup() {
   global_status = SD_get_config(config_doc);
   sweep_config = update_config_struct(config_doc);
 
-  // Cal data for our device
+  // Retrieve any saved calibration data from the SD card
   global_status = SD_get_cal(global_cal_doc);
 
   // Communication with ADF5356
@@ -196,10 +196,21 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
         frequencies.clear();
         sp8t_enablePort(out_port); // We're calibrating a single port
 
+        // To transmit progress to CLI during cal process
+        JsonDocument progress;
+        progress["type"] = "progress";
+        progress["cmd"] = "calibrate";
+        progress["status"] = status_to_str(STATUS_OK);
+
         // Cal process
         uint32_t curr_freq = 800;  // Start at 800 MHz
         uint32_t step = 100;       // 100 MHz steps
         while(curr_freq <= 6800) { // Loop through 6.8 GHz (61 total steps)
+
+          // Send progress report
+          progress["data"]["frequency"] = curr_freq;
+          serializeJson(progress, Serial);
+          Serial.println();
 
           ADF_write_freq(curr_freq);
           delay(2); // 2ms delay for sanity
@@ -208,10 +219,8 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
 
           // Convert raw ADC value to voltage
           float voltage = (raw * ADC_REF_VOLTAGE) / ADC_MAX_VALUE;
-          //frequencies.add(voltage); // Thru loss
-          // Dev
-          float placeholder = 1.0;
-          frequencies.add(placeholder);
+          frequencies.add(voltage); // Thru loss
+          //frequencies.add(curr_freq); // Dev test
 
           curr_freq += step;
         }
@@ -402,7 +411,7 @@ static status_t conduct_sweep(const char* sweep_name) {
         voltage -= get_cal_delta(port, i, curr_freq); // output port, input port, current frequency
 #endif
         data[i + 2] = voltage;
-
+        
         delay(LOG_AMP_READ_DELAY);
       }
 
@@ -496,15 +505,15 @@ float get_cal_delta(uint8_t out, uint8_t in, uint32_t frequency) {
   char one_key[20] = "out1_in1";
   
   //JsonArray frequencies = global_cal_doc[key].to<JsonArray>();
-  float in_freq = (float)(global_cal_doc[in_key].to<JsonArray>()[index]);
-  float out_freq = (float)(global_cal_doc[out_key].to<JsonArray>()[index]);
-  float one_freq = (float)(global_cal_doc[one_key].to<JsonArray>()[index]);
+  float in_loss = global_cal_doc[in_key].as<JsonArray>()[index].as<float>();
+  float out_loss = global_cal_doc[out_key].as<JsonArray>()[index].as<float>();
+  float one_loss = global_cal_doc[one_key].as<JsonArray>()[index].as<float>();
 
-  return in_freq - (one_freq - out_freq);
+  return in_loss - (one_loss - out_loss);
 }
 
 /**
- * @brief Print a JSON doc to serial
+ * @brief Print a JSON doc to serial. DEV use
  * @param doc - Json document to be serialized
  * @return: void
  */

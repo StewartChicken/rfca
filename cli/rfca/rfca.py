@@ -208,7 +208,10 @@ def wait_for_response(timeout=15):
                         print(f'[INFO] Firmware has finished processing the \'{msg.get("cmd")}\' command.')
                         return
                     elif msg.get("type") == "progress":
-                        print(f'[INFO] Wrote frequency: {msg.get("data").get("frequency")}')
+                        if(msg.get("cmd") == "sweep"):
+                            print(f'[INFO] Measuring frequency: {msg.get("data").get("frequency")} MHz')
+                        elif(msg.get("cmd") == "calibrate"):
+                            print(f'[INFO] Calibrating for frequency: {msg.get("data").get("frequency")} MHz')
 
                     # Otherwise, process response
                     processResponse(msg)
