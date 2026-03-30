@@ -41,8 +41,6 @@ time.sleep(2)
 ##############################
 ##### GUI data/functions #####
 
-from PySide6.QtWidgets import QFrame
-
 class ColorSwatch(QFrame):
     def __init__(self, color):
         super().__init__()

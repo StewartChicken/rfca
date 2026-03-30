@@ -21,6 +21,11 @@ from PySide6.QtWidgets import (
     QWidget, 
     QVBoxLayout, 
     QTabWidget,
+    QHBoxLayout,
+    QCheckBox,
+    QLabel,
+    QScrollArea,
+    QFrame,
 )
 
 # TODO: Make COM selection dynamic
@@ -35,6 +40,20 @@ time.sleep(2)
 
 ##############################
 ##### GUI data/functions #####
+
+# For dynamic legend
+class ColorSwatch(QFrame):
+    def __init__(self, color):
+        super().__init__()
+        self.setFixedSize(14, 14)
+
+        # Convert pyqtgraph color → Qt color
+        qcolor = pg.mkColor(color)
+
+        self.setStyleSheet(f"""
+            background-color: {qcolor.name()};
+            border: 1px solid black;
+        """)
 
 def initGUI():
     # Init GUI
