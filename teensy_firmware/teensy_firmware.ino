@@ -180,33 +180,38 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
         
         JsonArray ports = data.as<JsonArray>(); // Contains port information [out, in]
 
-        sp8t_port_t out = ports[0]; // Output of SP8T (1-8)
-        uint8_t in = ports[1];  // Input of Log-Amp (1-10)
+        sp8t_port_t out_port = ports[0]; // Output of SP8T (1-8)
+        uint8_t in_port = ports[1];  // Input of Log-Amp (1-10)
 
+        // CLI sends output and input ports to cal, the key accesses the correct one
         char key[20];
-        snprintf(key, sizeof(key), "out%d_in%d", out, in);
+        snprintf(key, sizeof(key), "out%d_in%d", out_port, in_port);
 
         // First we pull the data from the SD card
         JsonDocument cal_doc;
         cmd_status = SD_get_cal(cal_doc);
         JsonObject cal = cal_doc.as<JsonObject>();
-        JsonArray frequencies = cal[key].to<JsonArray>();
+        JsonArray frequencies = cal[key].to<JsonArray>(); // This is the current cal data
 
         frequencies.clear();
-        sp8t_enablePort(out); // We're only using one port per calibrate command
+        sp8t_enablePort(out_port); // We're calibrating a single port
 
         // Cal process
         uint32_t curr_freq = 800;  // Start at 800 MHz
         uint32_t step = 100;       // 100 MHz steps
-        while(curr_freq <= 6800) { // Loop through 6.8 GHz
+        while(curr_freq <= 6800) { // Loop through 6.8 GHz (61 total steps)
 
           ADF_write_freq(curr_freq);
+          delay(2); // 2ms delay for sanity
 
-          int raw = analogRead(log_amp_pins[in - 1]); // log_amp_pins indexed (0-9)
+          int raw = analogRead(log_amp_pins[in_port - 1]); // log_amp_pins indexed (0-9)
 
           // Convert raw ADC value to voltage
           float voltage = (raw * ADC_REF_VOLTAGE) / ADC_MAX_VALUE;
-          frequencies.add(voltage);
+          //frequencies.add(voltage); // Thru loss
+          // Dev
+          float placeholder = 1.0;
+          frequencies.add(placeholder);
 
           curr_freq += step;
         }
