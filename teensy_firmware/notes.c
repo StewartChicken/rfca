@@ -144,3 +144,4 @@
 //
 // Done: 
 // - Added cal reset capabilities from CLI
+// - Moved FW connection to main in CLI

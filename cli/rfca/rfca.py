@@ -5,7 +5,6 @@
 # TODO: Cleanup CLI UX
 # TODO: Add debug/dev functionality from CLI
 # TODO: Make GUI more legible (BIGGER = BETTER)
-# TODO: Move FW connection to main
 # TODO: Signal BOOT up
 # TODO: Add Pwr down cmd
 # TODO: Move sweep data save loc to folder (not root dir)
@@ -26,21 +25,6 @@ from pathlib import Path
 import pandas as pd
 import pyqtgraph as pg
 from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QTabWidget
-
-
-###############################
-###vv Firmware Connection vv###
-
-PORT = "COM4"
-BAUD = 115200 # BAUD is irrelevant for virtual COM (I just chose 115200 because it's somewhat standard) 
-
-# Connect to Teensy
-print("Connecting to Firmware...")
-ser = serial.Serial(PORT, BAUD, timeout=1)
-time.sleep(2)
-
-###^^ Firmware Connections ^^###
-################################
 
 
 ##############################
@@ -237,9 +221,10 @@ def parse_user_input(user_input):
  * @brief Send command and relevant data to firmware (after processing user input)
  * @param cmd: Issued command
  * @param data: Relevant data
+ * @param ser: Serial object for FW communication
  * @return None
  '''
-def sendJson(cmd, data):
+def sendJson(cmd, data, ser):
     # Create JSON structure
     envelope = {
         "cmd": cmd,
@@ -249,8 +234,6 @@ def sendJson(cmd, data):
     # Generate string literal with '\n' appened to indicate termination
     body = (json.dumps(envelope, separators=(",", ":")) + "\n")
 
-    print(body)
-
     # Write to USB
     ser.write(body.encode("utf-8"))
     ser.flush()
@@ -259,11 +242,12 @@ def sendJson(cmd, data):
 '''
  * @brief After sending JSON, this function waits for a response from firmware.
  *        It also prints cmd execution status (if relevant) and calls firmware response functions. 
+ * @param ser: Serial object for FW communication
  * @param timeout - How long (seconds) to wait for FW response before terminating. 
  *                  15 seconds by default
  * @return None
  '''
-def wait_for_response(timeout=15):
+def wait_for_response(ser, timeout=15):
     print("[INFO] Waiting firmware for response...")
 
     # To indicate status
@@ -423,6 +407,14 @@ def processError():
 
 def main():
 
+    PORT = "COM4"
+    BAUD = 115200 # BAUD is irrelevant for virtual COM (I just chose 115200 because it's somewhat standard) 
+
+    # Connect to Teensy
+    print("Connecting to Firmware...")
+    ser = serial.Serial(PORT, BAUD, timeout=1)
+    time.sleep(2)
+    
     # CLI User Prompts
     print("=== RFCA CLI ===")
     print("Enter commands below")
@@ -445,9 +437,10 @@ def main():
             # Parse terminal input, package and send to firmware, wait till response or time out
             cmd, data = parse_user_input(user_input)
 
-            if (cmd is not None and data is not None):
-                sendJson(cmd, data)
-                wait_for_response(timeout=60) # 60 second time out
+            # Only send JSON to FW if cmd is present
+            if (cmd is not None):
+                sendJson(cmd, data, ser)
+                wait_for_response(ser, timeout=60) # 60 second time out
             else:
                 print("\n[WARN] No valid data to send \n")
 
