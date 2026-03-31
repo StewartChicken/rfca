@@ -7,16 +7,16 @@
 #define ADM_POS_3v3                 8
 #define ADM_NEG_3v3                 9
 
-// ADF5356
+// ADF5356 Pins
 #define ADF_LE                      36 // SPI0 CS  
 #define ADF_DATA                    11 // SPI0 MOSI 
 #define ADF_MISO                    12 // SPI0 MISO Not Used (Registers are write only)
 #define ADF_CLK                     13 // SPI0 CLK
 
-// SD card
+// SD card Pins
 #define SD_CS                       BUILTIN_SDCARD  // For Teensy 4.1 SDIO slot
 
-// Log amp
+// Log Amp Pins
 #define LOG_AMP_0                   A0
 #define LOG_AMP_1                   A1
 #define LOG_AMP_2                   A2
@@ -41,26 +41,26 @@ static const uint8_t log_amp_pins[10] = {
     LOG_AMP_9
 };
 
-// SP8T
-#define SP8T_PIN_LS                 2
-#define SP8T_PIN_ENABLE             3
-#define SP8T_PIN_V1                 4
-#define SP8T_PIN_V2                 5
-#define SP8T_PIN_V3                 6 
-
-// SP8T Bit Masks
-#define SP8T_NUM_PORTS              8
-#define SP8T_V1_MSK                 0x1 // 0x1 = 0b 0001
-#define SP8T_V2_MSK                 0x2 // 0x2 = 0b 0010
-#define SP8T_V3_MSK                 0x4 // 0x4 = 0b 0100
-
-
 // LogAmp Config
 #define NUM_LOG_AMPS                10
 #define LOG_AMP_READ_DELAY          5   // ms
 #define ADC_REF_VOLTAGE             3.3  // Teensy uses a 3.3 V reference for analog inputs
 #define ADC_RESOLUTION              10   // 10-bit, max 12?
 #define ADC_MAX_VALUE               1023 // default 10-bit resolution
+
+// SP8T Pins
+#define SP8T_PIN_LS                 2
+#define SP8T_PIN_ENABLE             3
+#define SP8T_PIN_V1                 4
+#define SP8T_PIN_V2                 5
+#define SP8T_PIN_V3                 6 
+
+// SP8T Config & Bit masks
+#define SP8T_NUM_PORTS              8
+#define SP8T_V1_MSK                 0x1 // 0x1 = 0b 0001
+#define SP8T_V2_MSK                 0x2 // 0x2 = 0b 0010
+#define SP8T_V3_MSK                 0x4 // 0x4 = 0b 0100
+
 
 typedef enum {
     UNDEF_PORT  = -1,
@@ -74,7 +74,7 @@ typedef enum {
     SP8T_PORT_8,
 } sp8t_port_t;
 
-// Data Structures
+// Sweep parameters
 typedef struct {
     sp8t_port_t sp8t_out_ports[8];  // 1-8, inclusive
     uint32_t start_freq;            // MHz
@@ -84,6 +84,7 @@ typedef struct {
 } Config_t;
 
 
+// TODO: Remove?
 #define NUM_CONFIG_VALUES 17 // (1, 1) thru (8, 1) and (1, 1) thru (1, 10)   -> w/ (out, in)
 #define NUM_FREQ 35 // 800 MHz to 6.8 MHz w/ 100 MHz steps
 float cal_data[NUM_CONFIG_VALUES][NUM_FREQ]; 
