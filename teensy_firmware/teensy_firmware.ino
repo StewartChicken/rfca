@@ -59,14 +59,25 @@ void setup() {
   // Retrieve any saved calibration data from the SD card
   global_status = SD_get_cal(global_cal_doc);
 
-  // Communication with ADF5356
-  ADF_spi_init();
+  // Power control.  These pins need to be written high before the switch logic or synth control
+  pinMode(ADM_POS_3v3, OUTPUT);
+  pinMode(ADM_NEG_3v3, OUTPUT);
+  digitalWrite(ADM_POS_3v3, HIGH); 
+  delay(1000); // For safety
+  digitalWrite(ADM_NEG_3v3, HIGH);
+  delay(1000); // For safety 
 
   // For LogAmps
   analogReadResolution(ADC_RESOLUTION);  
 
   // GPIO config for sp8t mux
   sp8t_init();
+  delay(1000); // For safety
+
+  // Communication with ADF5356
+  ADF_spi_init();
+  delay(1000); // For safety
+  
   
   // TODO: If an error is present, send immediately to CLI once connected
   Serial.begin(115200);   
@@ -338,6 +349,14 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
 #endif 
 
     }
+    // Dev command
+    else if(strcmp(cmd, "port") == 0) {
+      const uint32_t port = data.as<uint32_t>();
+      Serial.println("Enabling Port: ");
+      Serial.println(port);
+      sp8t_enablePort((sp8t_port_t)port);
+      Serial.println("Done enabling port");
+    }
 
     // Send response
     serializeJson(response, Serial);
@@ -408,7 +427,7 @@ static status_t conduct_sweep(const char* sweep_name) {
         // Convert raw ADC value to voltage
         float voltage = (raw * ADC_REF_VOLTAGE) / ADC_MAX_VALUE;
 #if ENABLE_CALIBRATION
-        voltage -= get_cal_delta(port, i, curr_freq); // output port, input port, current frequency
+        voltage += get_cal_delta(port, i, curr_freq); // output port, input port, current frequency
 #endif
         data[i + 2] = voltage;
         

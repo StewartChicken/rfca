@@ -108,3 +108,27 @@
 // - When retrieving sweep data, there is not enough ram to send large files? (Times out w/ too much data)
 // - May need to send data in parts and reconstruct on the CLI end
 // - Not an issue for the acceptance test, we'll just sample at 200 MHz steps
+//
+// 3/30
+// CAL data structure example
+// Each 0 represents the loss at a specific frequency, ranging from 800 MHz to 6.8 GHz (61 total steps per port)
+// 
+//{
+// "out1_in1":  [0, 0, 0...],  
+// "out2_in1":  [0],
+// "out3_in1":  [0],
+// "out4_in1":  [0],
+// "out5_in1":  [0],
+// "out6_in1":  [0],
+// "out7_in1":  [0],
+// "out8_in1":  [0],
+// "out1_in2":  [0],
+// "out1_in3":  [0],
+// "out1_in4":  [0],
+// "out1_in5":  [0],
+// "out1_in6":  [0],
+// "out1_in7":  [0],
+// "out1_in8":  [0],
+// "out1_in9":  [0],
+// "out1_in10": [0]
+// }

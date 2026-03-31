@@ -41,6 +41,7 @@ time.sleep(2)
 ##############################
 ##### GUI data/functions #####
 
+# For dynamic legend
 class ColorSwatch(QFrame):
     def __init__(self, color):
         super().__init__()
@@ -229,7 +230,6 @@ def split_data_by_port(df: pd.DataFrame) -> dict[int, pd.DataFrame]:
     for port in sorted(df["out_port"].unique()):
         port_data[port] = df[df["out_port"] == port].copy()
     return port_data
-
 
 ###^^ GUI functions ^^###
 #########################

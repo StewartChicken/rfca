@@ -3,6 +3,10 @@
 #define _COMMON_DEFS_H
 
 
+// Power control
+#define ADM_POS_3v3                 8
+#define ADM_NEG_3v3                 9
+
 // ADF5356
 #define ADF_LE                      36 // SPI0 CS  
 #define ADF_DATA                    11 // SPI0 MOSI 
@@ -119,7 +123,7 @@ const char* status_to_str(status_t s)
     }
 }
 
-// DEBUG (dev)
+// DEBUG config (dev)
 #define ENABLE_DEBUG_PRINTS 0 // This needs to be 0 when using the CLI to communicate with the Teensy
 #define ENABLE_CALIBRATION  1 // Determines if calibration data is accounted for when recording loss measurements
 

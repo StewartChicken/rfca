@@ -1,5 +1,8 @@
 
 # TODO: Create consistent dependency environment (multiple libraries for 'serial')
+# TODO: Make COM selection dynamic
+# TODO: Error handling/communication
+# TODO: Cleanup CLI UX
 
 # For FW interaction
 import os
@@ -7,28 +10,18 @@ import json
 import shlex
 import serial
 import time
-import sys
 
 # For GUI
 from pathlib import Path
-
 import pandas as pd
 import pyqtgraph as pg
+from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QTabWidget
 
-from PySide6.QtWidgets import (
-    QApplication, 
-    QMainWindow, 
-    QWidget, 
-    QVBoxLayout, 
-    QTabWidget,
-    QHBoxLayout,
-    QCheckBox,
-    QLabel,
-    QScrollArea,
-    QFrame,
-)
 
-# TODO: Make COM selection dynamic
+
+###############################
+###vv Firmware Connection vv###
+
 PORT = "COM4"
 BAUD = 115200 # BAUD is irrelevant for virtual COM (I just chose 115200 because it's somewhat standard) 
 
@@ -37,26 +30,20 @@ print("Connecting to Firmware...")
 ser = serial.Serial(PORT, BAUD, timeout=1)
 time.sleep(2)
 
+###^^ Firmware Connections ^^###
+################################
+
 
 ##############################
-##### GUI data/functions #####
+###vv GUI data/functions vv###
 
-# For dynamic legend
-class ColorSwatch(QFrame):
-    def __init__(self, color):
-        super().__init__()
-        self.setFixedSize(14, 14)
-
-        # Convert pyqtgraph color → Qt color
-        qcolor = pg.mkColor(color)
-
-        self.setStyleSheet(f"""
-            background-color: {qcolor.name()};
-            border: 1px solid black;
-        """)
-
+'''
+ * @brief Return the cal data for a given in/out port pair and a frequency
+ * @param None
+ * @return Dynamic GUI object
+ '''
 def initGUI():
-    # Init GUI
+    # Init GUI Object
     app = QApplication([])
     GUI = QMainWindow()
     GUI.setWindowTitle("RFCA GUI")
@@ -87,15 +74,22 @@ def initGUI():
 
     return GUI
 
-CSV_COLUMNS = ["out_port", "frequency"] + [f"LA{i}" for i in range(10)] # data .csv structure
+# .csv data structure
+CSV_COLUMNS = ["out_port", "frequency"] + [f"LA{i}" for i in range(10)] 
 csv_path = None # Empty file path for now (global)
-GUI = initGUI()
+GUI = initGUI() # Global GUI object (runs indefinitely while CLI is running)
 
-# Port tab switch functions
+'''
+ * @brief Plot the data for a given SP8T port on the GUI
+ * @param port: 1-8 inclusive
+ * @param port_data: Info. to be plotted
+ * @return None
+ '''
 def plot_port_data(port: int, port_data):
     GUI.plot_widget.clear()
     GUI.plot_widget.addLegend()
 
+    # Check which ports have no data
     if port not in port_data:
         GUI.plot_widget.setTitle(f"Port {port} (no data)")
         return
@@ -105,6 +99,7 @@ def plot_port_data(port: int, port_data):
 
     GUI.plot_widget.setTitle(f"Port {port}")
 
+    # Plot each LogAmp value vs. Frequency
     for i in range(10):
         col = f"LA{i}"
         GUI.plot_widget.plot(
@@ -114,6 +109,11 @@ def plot_port_data(port: int, port_data):
             pen=pg.intColor(i, hues=10),
         )
 
+'''
+ * @brief Called when the port is switched on the GUI
+ * @param index: 0-7 inclusive
+ * @return None
+ '''
 def on_tab_changed(index: int):
     port = index + 1
 
@@ -123,6 +123,11 @@ def on_tab_changed(index: int):
 # For tab updates
 GUI.tabs.currentChanged.connect(on_tab_changed)
 
+'''
+ * @brief Load loss information from csv and populate dataframe
+ * @param csv_path: File path 
+ * @return dataframe with loss information
+ '''
 def load_sweep_data(csv_path: Path) -> pd.DataFrame:
     df = pd.read_csv(csv_path)
 
@@ -135,24 +140,42 @@ def load_sweep_data(csv_path: Path) -> pd.DataFrame:
     df = df.sort_values(["out_port", "frequency"]).reset_index(drop=True)
     return df
 
-
+'''
+ * @brief Create a dictionary organizing loss information by port
+ * @param df: Combined loss data
+ * @return dictionary with organized loss info
+ '''
 def split_data_by_port(df: pd.DataFrame) -> dict[int, pd.DataFrame]:
     port_data = {}
     for port in sorted(df["out_port"].unique()):
         port_data[port] = df[df["out_port"] == port].copy()
     return port_data
 
-###^^ GUI functions ^^###
-#########################
+###^^ GUI data/functions ^^###
+##############################
 
 
+#############################
+####vvv CLI functions vvv####
 
-# CLI input
+
+'''
+ * @brief Parses cmd and data from raw user CLI input
+ * @param user_input: String w/ user input
+ * @return cmd, data: parsed from string input
+ '''
 def parse_user_input(user_input):
-    parts = shlex.split(user_input) # Space-delimited
 
+    # Raw inputs are space-delimited
+    parts = shlex.split(user_input) 
+
+    # The first part of the input is always the command
     cmd = parts[0]
 
+
+    # Next, based on the command, process further arguments into 'data' accordingly
+
+    # 'config' needs to open the ./config.json file and store in 'data'
     if cmd == "config":
         try: 
             with open('./config.json', "r", encoding="utf-8") as f:
@@ -160,25 +183,38 @@ def parse_user_input(user_input):
         except Exception as e:
             print(f"Failed to read/parse JSON file: {e}")
             return None, None # TODO, check this error handling
+        
+    # 'calibrate' needs to store port info in 'data'
     elif cmd == "calibrate": 
         out_port = parts[1] # Must be between 1 and 8 inclusive
         in_port = parts[2]  # Must be between 1 and 10 inclusive
         data = [out_port, in_port]
+
+    # 'sweep', 'retrieve', 'delete' each stores sweep name information into 'data'
     elif cmd == "sweep":
         data = parts[1]
-    elif cmd == "list":
-        data = None
     elif cmd == "retrieve":
         data = parts[1]
     elif cmd == "delete":
         data = parts[1]
-    else:
+
+    # 'list' has no data
+    elif cmd == "list":
         data = None
 
+    else:
+        # TODO: Throw error?
+        data = None
 
+    # After processing, return both the command and its data
     return cmd, data
 
-# Send JSON command data to firmware
+'''
+ * @brief Send command and relevant data to firmware (after processing user input)
+ * @param cmd: Issued command
+ * @param data: Relevant data
+ * @return None
+ '''
 def sendJson(cmd, data):
     # Create JSON structure
     envelope = {
@@ -194,10 +230,17 @@ def sendJson(cmd, data):
     ser.flush()
 
 
-# 15 second timeout by default
+'''
+ * @brief After sending JSON, this function waits for a response from firmware.
+ *        It also prints cmd execution status (if relevant) and calls firmware response functions. 
+ * @param timeout - How long (seconds) to wait for FW response before terminating. 
+ *                  15 seconds by default
+ * @return None
+ '''
 def wait_for_response(timeout=15):
     print("[INFO] Waiting firmware for response...")
 
+    # To indicate status
     spinner = ["|", "/", "-", "\\"]
     spinner_idx = 0
     
@@ -219,13 +262,19 @@ def wait_for_response(timeout=15):
                 try:
                     msg = json.loads(line)
 
-                    # Process 'ack' and 'complete' codes from firmware
+                    # Below, we process the status codes from FW 
+
+                    # 'ack' is sent by FW to acknowledge a received command.  FW sends this before beginning its processing
                     if msg.get("type") == "ack":
                         print(f'[INFO] Firmware has received the \'{msg.get("cmd")}\' command.')
                         continue
+
+                    # 'complete' is sent by FW to indicate completion of command processing. 
                     elif msg.get("type") == "complete":
                         print(f'[INFO] Firmware has finished processing the \'{msg.get("cmd")}\' command.')
                         return
+                    
+                    # 'progress' is sent by FW to inform CLI of its current step in processing
                     elif msg.get("type") == "progress":
                         if(msg.get("cmd") == "sweep"):
                             print(f'[INFO] Measuring frequency: {msg.get("data").get("frequency")} MHz')
@@ -233,7 +282,12 @@ def wait_for_response(timeout=15):
                             print(f'[INFO] Calibrating for frequency: {msg.get("data").get("frequency")} MHz')
 
                     # Otherwise, process response
-                    processResponse(msg)
+                    elif msg.get("type") == "data":
+                        processResponse(msg)
+
+                    else:
+                        pass
+                        # Error?
 
                 # String was not JSON format
                 except json.JSONDecodeError:
@@ -249,9 +303,13 @@ def wait_for_response(timeout=15):
         time.sleep(0.1)
 
     # Timeout warning
-    print("\n[WARN] Response wait timed out.\n")
+    print("\n[WARN] Timed out while waiting for response.\n")
 
-# response_data is JSON
+'''
+ * @brief Process errors or data sent by FW
+ * @param response_data: JSON sent by FW
+ * @return None
+ '''
 def processResponse(response_data):
 
     # Handle errors returned by the firmware
@@ -266,8 +324,12 @@ def processResponse(response_data):
         processData(cmd, data)
         return
 
-
-# Process response data from all possible commands
+'''
+ * @brief Process response data for all possible commands
+ * @param cmd: Processed command
+ * @param data: Processed data
+ * @return None
+ '''
 def processData(cmd, data):
     if(cmd == "config"):
         config_params = data.get("config_params")
