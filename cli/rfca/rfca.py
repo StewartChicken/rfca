@@ -4,12 +4,15 @@
 # TODO: Error handling/communication
 # TODO: Cleanup CLI UX
 # TODO: Add reset for cal data
-# TODO: Add dev commands from CLI
+# TODO: Add debug/dev functionality from CLI
 # TODO: Make GUI more legible (BIGGER = BETTER)
 # TODO: Move FW connection to main
 # TODO: Signal BOOT up
 # TODO: Add Pwr down cmd
 # TODO: Move sweep data save loc to folder (not root dir)
+# TODO: Add clear/cls commands
+# TODO: Progress reports from FW increase timeout so program doesn't terminate prematurely
+# TODO: CMD Buffer (timeouts cause data desync)
 
 # For FW interaction
 import os

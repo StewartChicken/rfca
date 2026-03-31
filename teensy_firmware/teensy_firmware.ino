@@ -297,14 +297,13 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
         response["status"] = status_to_str(cmd_status);
         response["data"]["sweep_name"] = sweep_name;
     }
-    // Dev command
+
+    // Dev command, write specified frequency and read power on LA0
     else if(strcmp(cmd, "freq") == 0) { // {cmd: "freq", data: 3500} // Set output to 3500 MHz
+      const uint32_t freq = data.as<uint32_t>();
 #if ENABLE_DEBUG_PRINTS
       Serial.println("Got 'freq' command, initializing frequency");
       Serial.print("Frequency: ");
-#endif
-      const uint32_t freq = data.as<uint32_t>();
-#if ENABLE_DEBUG_PRINTS
       Serial.println(freq);
 #endif
       ADF_write_freq(freq);
@@ -334,8 +333,7 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
       Serial.println(total_power);
 #endif
 
-//#if ENABLE_DEBUG_PRINTS
-#if 0
+#if ENABLE_DEBUG_PRINTS
       Serial.print("Raw reading: ");
       Serial.println(raw);
       Serial.print("Voltage: ");
@@ -348,15 +346,20 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
       Serial.println(power);
 #endif 
 
-    }
-    // Dev command
-    else if(strcmp(cmd, "port") == 0) {
+    } // END OF else if(strcmp(cmd, "freq") == 0)
+
+    // Dev command, enable specific SP8T port
+    else if(strcmp(cmd, "port") == 0) { // {cmd: "port", data: 1} // Open port 1 (close the rest)
       const uint32_t port = data.as<uint32_t>();
+#if ENABLE_DEBUG_PRINTS
       Serial.println("Enabling Port: ");
       Serial.println(port);
+#endif
       sp8t_enablePort((sp8t_port_t)port);
+#if ENABLE_DEBUG_PRINTS
       Serial.println("Done enabling port");
-    }
+#endif
+    } // END OF else if(strcmp(cmd, "port") == 0)
 
     // Send response
     serializeJson(response, Serial);
