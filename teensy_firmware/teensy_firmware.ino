@@ -190,9 +190,10 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
     else if(strcmp(cmd, "calibrate") == 0) {
         
         JsonArray ports = data.as<JsonArray>(); // Contains port information [out, in]
-
-        sp8t_port_t out_port = ports[0]; // Output of SP8T (1-8)
-        uint8_t in_port = ports[1];  // Input of Log-Amp (1-10)
+        
+        uint8_t out_port     = ports[0];  // Output of SP8T (1-8)
+        uint8_t in_port      = ports[1];  // Input of Log-Amp (1-10)
+        int8_t set           = ports[2];  // If -1, proceed w/ cal.  Otherwise, hardcode cal value to 'set'
 
         // CLI sends output and input ports to cal, the key accesses the correct one
         char key[20];
@@ -204,35 +205,55 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
         JsonObject cal = cal_doc.as<JsonObject>();
         JsonArray frequencies = cal[key].to<JsonArray>(); // This is the current cal data
 
+        // Reset before updating
         frequencies.clear();
-        sp8t_enablePort(out_port); // We're calibrating a single port
 
-        // To transmit progress to CLI during cal process
-        JsonDocument progress;
-        progress["type"] = "progress";
-        progress["cmd"] = "calibrate";
-        progress["status"] = status_to_str(STATUS_OK);
+        // Proceed w/ typical cal
+        if(set == -1) {
+          sp8t_enablePort(out_port); // We're calibrating a single port
 
+          // To transmit progress to CLI during cal process
+          JsonDocument progress;
+          progress["type"] = "progress";
+          progress["cmd"] = "calibrate";
+          progress["status"] = status_to_str(STATUS_OK);
+
+          // Cal process
+          uint32_t curr_freq = 800;  // Start at 800 MHz
+          uint32_t step = 100;       // 100 MHz steps
+          while(curr_freq <= 6800) { // Loop through 6.8 GHz (61 total steps)
+
+            // Send progress report
+            progress["data"]["frequency"] = curr_freq;
+            serializeJson(progress, Serial);
+            Serial.println();
+
+            ADF_write_freq(curr_freq);
+            delay(2); // 2ms delay for sanity
+
+            int raw = analogRead(log_amp_pins[in_port - 1]); // log_amp_pins indexed (0-9)
+
+            // Convert raw ADC value to voltage
+            float voltage = (raw * ADC_REF_VOLTAGE) / ADC_MAX_VALUE;
+            frequencies.add(voltage); // Thru loss
+            //frequencies.add(curr_freq); // Dev test
+
+            curr_freq += step;
+          }
+
+          cmd_status = SD_update_cal(cal); // Write to SD
+          cmd_status = SD_get_cal(global_cal_doc); // Read from SD and write to global
+          
+          response["status"] = status_to_str(cmd_status);
+          response["data"]["cal_data"] = cal; // This is the config data the SD card contains
+      }
+      else { // If set != -1, we set hard coded values for cal data
+        
         // Cal process
         uint32_t curr_freq = 800;  // Start at 800 MHz
         uint32_t step = 100;       // 100 MHz steps
         while(curr_freq <= 6800) { // Loop through 6.8 GHz (61 total steps)
-
-          // Send progress report
-          progress["data"]["frequency"] = curr_freq;
-          serializeJson(progress, Serial);
-          Serial.println();
-
-          ADF_write_freq(curr_freq);
-          delay(2); // 2ms delay for sanity
-
-          int raw = analogRead(log_amp_pins[in_port - 1]); // log_amp_pins indexed (0-9)
-
-          // Convert raw ADC value to voltage
-          float voltage = (raw * ADC_REF_VOLTAGE) / ADC_MAX_VALUE;
-          frequencies.add(voltage); // Thru loss
-          //frequencies.add(curr_freq); // Dev test
-
+          frequencies.add(set); // Thru loss
           curr_freq += step;
         }
 
@@ -241,6 +262,7 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
         
         response["status"] = status_to_str(cmd_status);
         response["data"]["cal_data"] = cal; // This is the config data the SD card contains
+      }
 
     }
     else if(strcmp(cmd, "sweep") == 0) {

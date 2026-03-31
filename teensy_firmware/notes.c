@@ -136,8 +136,11 @@
 //
 // 3/31
 // TODO:
-// Power up sequence: +3.3, -3.3, Switch CTRL, RF
-// Power dn sequence: RF, Switch CTRL, -3.3, +3.3
-// Send data to CLI in chunks not in one segment (RAM limitation)
-// Error handling
-// Add more debug/dev functionality
+// - Power up sequence: +3.3, -3.3, Switch CTRL, RF
+// - Power dn sequence: RF, Switch CTRL, -3.3, +3.3
+// - Send data to CLI in chunks not in one segment (RAM limitation)
+// - Error handling
+// - Add more debug/dev functionality
+//
+// Done: 
+// - Added cal reset capabilities from CLI

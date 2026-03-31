@@ -3,7 +3,6 @@
 # TODO: Make COM selection dynamic
 # TODO: Error handling/communication
 # TODO: Cleanup CLI UX
-# TODO: Add reset for cal data
 # TODO: Add debug/dev functionality from CLI
 # TODO: Make GUI more legible (BIGGER = BETTER)
 # TODO: Move FW connection to main
@@ -13,6 +12,7 @@
 # TODO: Add clear/cls commands
 # TODO: Progress reports from FW increase timeout so program doesn't terminate prematurely
 # TODO: CMD Buffer (timeouts cause data desync)
+# TODO: Add connect/disconnect commands for FW serial
 
 # For FW interaction
 import os
@@ -197,17 +197,22 @@ def parse_user_input(user_input):
     elif cmd == "calibrate": 
         out_port = parts[1] # Must be between 1 and 8 inclusive
         in_port = parts[2]  # Must be between 1 and 10 inclusive
+        set_cal = '-1'        # -1 by default indicates running typical calibration
 
-        '''
-        if(parts[3] is not None):
-            reset = 0 # Reset this port to zero
-        else:
-            reset = -1 # Do not reset
-        '''
+        if((int)(out_port) < 1 or (int)(out_port) > 8):
+            print(f"\n[WARN] output port out of range: {out_port} is not within [1, 8]")
+            return None, None # TODO Error handling
+        elif((int)(in_port) < 1 or (int)(in_port) > 10):
+            print(f"\n[WARN] input port out of range: {in_port} is not within [1, 10]")
+            return None, None # TODO Error handling
 
-        #data = [out_port, in_port, reset]
-        data = [out_port, in_port]
-        print(data)
+        # If a set_cal parameter is passed, set the cal value to that argument
+        try:
+            set_cal = parts[3] 
+        except Exception as e:
+            pass
+
+        data = [out_port, in_port, set_cal]
 
     # 'sweep', 'retrieve', 'delete' each stores sweep name information into 'data'
     elif cmd == "sweep":
@@ -243,6 +248,8 @@ def sendJson(cmd, data):
 
     # Generate string literal with '\n' appened to indicate termination
     body = (json.dumps(envelope, separators=(",", ":")) + "\n")
+
+    print(body)
 
     # Write to USB
     ser.write(body.encode("utf-8"))
@@ -437,9 +444,13 @@ def main():
             
             # Parse terminal input, package and send to firmware, wait till response or time out
             cmd, data = parse_user_input(user_input)
-            sendJson(cmd, data)
-            wait_for_response(timeout=60) # 60 second time out
-            
+
+            if (cmd is not None and data is not None):
+                sendJson(cmd, data)
+                wait_for_response(timeout=60) # 60 second time out
+            else:
+                print("\n[WARN] No valid data to send \n")
+
         except KeyboardInterrupt:
             print("\n[INFO] Interrupted. Type 'q' to quit.")
         except EOFError:
