@@ -3,6 +3,13 @@
 # TODO: Make COM selection dynamic
 # TODO: Error handling/communication
 # TODO: Cleanup CLI UX
+# TODO: Add reset for cal data
+# TODO: Add dev commands from CLI
+# TODO: Make GUI more legible (BIGGER = BETTER)
+# TODO: Move FW connection to main
+# TODO: Signal BOOT up
+# TODO: Add Pwr down cmd
+# TODO: Move sweep data save loc to folder (not root dir)
 
 # For FW interaction
 import os
@@ -16,7 +23,6 @@ from pathlib import Path
 import pandas as pd
 import pyqtgraph as pg
 from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QTabWidget
-
 
 
 ###############################
@@ -188,7 +194,17 @@ def parse_user_input(user_input):
     elif cmd == "calibrate": 
         out_port = parts[1] # Must be between 1 and 8 inclusive
         in_port = parts[2]  # Must be between 1 and 10 inclusive
+
+        '''
+        if(parts[3] is not None):
+            reset = 0 # Reset this port to zero
+        else:
+            reset = -1 # Do not reset
+        '''
+
+        #data = [out_port, in_port, reset]
         data = [out_port, in_port]
+        print(data)
 
     # 'sweep', 'retrieve', 'delete' each stores sweep name information into 'data'
     elif cmd == "sweep":

@@ -125,6 +125,6 @@ const char* status_to_str(status_t s)
 
 // DEBUG config (dev)
 #define ENABLE_DEBUG_PRINTS 0 // This needs to be 0 when using the CLI to communicate with the Teensy
-#define ENABLE_CALIBRATION  1 // Determines if calibration data is accounted for when recording loss measurements
+#define ENABLE_CALIBRATION  0 // Determines if calibration data is accounted for when recording loss measurements
 
 #endif // _COMMON_DEFS_H

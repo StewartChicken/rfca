@@ -132,3 +132,10 @@
 // "out1_in9":  [0],
 // "out1_in10": [0]
 // }
+//
+//
+// 3/31
+// 
+// TODO:
+// Power up sequence: +3.3, -3.3, Switch CTRL, RF
+// Power dn sequence: RF, Switch CTRL, -3.3, +3.3

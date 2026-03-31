@@ -422,16 +422,26 @@ static status_t conduct_sweep(const char* sweep_name) {
       ADF_write_freq(curr_freq);
       
       for(int i = 0; i < NUM_LOG_AMPS; i++) {
-        int raw = analogRead(log_amp_pins[i]);
 
-        // Convert raw ADC value to voltage
-        float voltage = (raw * ADC_REF_VOLTAGE) / ADC_MAX_VALUE;
+        // Slope and Intercept depend on frequency
+        float slope = 0.00434*pow(((float)curr_freq / 1000.0), 3) - 0.0441*pow(((float)curr_freq / 1000.0), 2) + 0.123*((float)curr_freq / 1000.0) + 18.6;
+        float intercept = -0.0153*pow(((float)curr_freq / 1000.0), 3) + 0.209*pow(((float)curr_freq / 1000.0), 2) - 1.21*((float)curr_freq / 1000.0) - 61.8;
+
+        int raw = analogRead(log_amp_pins[i]);
+        float voltage = (raw * (float)ADC_REF_VOLTAGE) / (float)ADC_MAX_VALUE; // Convert raw ADC value to voltage (V)
+
 #if ENABLE_CALIBRATION
         voltage += get_cal_delta(port, i, curr_freq); // output port, input port, current frequency
 #endif
+
+        // Power (dB) = (Measured Voltage (mV) / Slope) + Intercept
+        // ^^^ This comes from the ADL5507 Log-Ammp datasheet
+        float power = (voltage * 1000.0) / slope + intercept;
+
         data[i + 2] = voltage;
-        
+        //data[i + 2] = power;
         delay(LOG_AMP_READ_DELAY);
+        
       }
 
       // Adds the new row of data to the corresponding csv
