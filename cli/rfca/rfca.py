@@ -11,7 +11,6 @@
 # TODO: Add clear/cls commands
 # TODO: Progress reports from FW increase timeout so program doesn't terminate prematurely
 # TODO: CMD Buffer (timeouts cause data desync)
-# TODO: Add connect/disconnect commands for FW serial
 
 # For FW interaction
 import os
@@ -26,6 +25,10 @@ import pandas as pd
 import pyqtgraph as pg
 from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QTabWidget
 
+# For communication w/ firmware.  NULL 'till main runs
+ser = None
+PORT = "COM4"
+BAUD = 115200 # BAUD is irrelevant for virtual COM (I just chose 115200 because it's somewhat standard) 
 
 ##############################
 ###vv GUI data/functions vv###
@@ -151,6 +154,33 @@ def split_data_by_port(df: pd.DataFrame) -> dict[int, pd.DataFrame]:
 #############################
 ####vvv CLI functions vvv####
 
+'''
+ * @brief Open connection to FW
+ * @param PORT: COM port connected to FW
+ * @param BAUD: Baud rate of communication, this value is irrelevant for virutal COM
+ * @return ser: Serial object for FW communication
+ '''
+def connectFW(PORT, BAUD):
+    # Connect to Teensy
+    print("Connecting to Firmware...")
+    ser = serial.Serial(PORT, BAUD, timeout=1)
+    time.sleep(2)
+    print("Connected")
+
+    return ser
+
+'''
+ * @brief Close connection to FW and cleanup
+ * @param ser: Serial object for FW communication
+ * @return: None
+ '''
+def disconnectFW(ser):
+    print("Disconnecting from Firmware...")
+    ser.flush() # Flush data in buffer
+    ser.close()
+    time.sleep(2)
+    print("Disconnected")
+
 
 '''
  * @brief Parses cmd and data from raw user CLI input
@@ -210,6 +240,16 @@ def parse_user_input(user_input):
     elif cmd == "list":
         data = None
 
+    # Manual connect/disconnect commands
+    elif cmd == "connect":
+        global ser
+        global PORT
+        global BAUD
+        ser = connectFW(PORT, BAUD)
+        return None, None
+    elif cmd == "disconnect":
+        disconnectFW(ser)
+        return None, None
     else:
         # TODO: Throw error?
         data = None
@@ -404,16 +444,12 @@ def processError():
     print("Error detected")
 
 
-
 def main():
 
-    PORT = "COM4"
-    BAUD = 115200 # BAUD is irrelevant for virtual COM (I just chose 115200 because it's somewhat standard) 
-
-    # Connect to Teensy
-    print("Connecting to Firmware...")
-    ser = serial.Serial(PORT, BAUD, timeout=1)
-    time.sleep(2)
+    global ser
+    global PORT
+    global BAUD
+    ser = connectFW(PORT, BAUD)
     
     # CLI User Prompts
     print("=== RFCA CLI ===")
@@ -442,7 +478,7 @@ def main():
                 sendJson(cmd, data, ser)
                 wait_for_response(ser, timeout=60) # 60 second time out
             else:
-                print("\n[WARN] No valid data to send \n")
+                pass
 
         except KeyboardInterrupt:
             print("\n[INFO] Interrupted. Type 'q' to quit.")
