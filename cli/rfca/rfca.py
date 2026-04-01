@@ -10,7 +10,6 @@
 # TODO: Move sweep data save loc to folder (not root dir)
 # TODO: Progress reports from FW increase timeout so program doesn't terminate prematurely
 # TODO: CMD Buffer (timeouts cause data desync)
-# TODO: Write err(str) and warn(str) and info(str) functions to issue data to user in a more organized manner
 # TODO: Subtle spell-casting (file_name and file_name.csv should be treated the same?)
 
 
@@ -371,10 +370,6 @@ def sendJson(cmd, data, ser):
 def wait_for_response(ser, timeout=15):
     info("Waiting firmware for response...")
 
-    # To indicate status
-    spinner = ["|", "/", "-", "\\"]
-    spinner_idx = 0
-    
     start_time = time.time()
 
     while (time.time() - start_time) < timeout:
@@ -427,10 +422,7 @@ def wait_for_response(ser, timeout=15):
 
             except Exception as e:
                 err(f"Failed to read serial response: {e}")
-
-        # Spinner while waiting
-        #print(f"\r[INFO]{spinner[spinner_idx % 4]}", end="", flush=True)
-        #spinner_idx += 1
+                
         time.sleep(0.1)
 
     # Timeout warning
