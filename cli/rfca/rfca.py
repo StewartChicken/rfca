@@ -11,6 +11,8 @@
 # TODO: Add clear/cls commands
 # TODO: Progress reports from FW increase timeout so program doesn't terminate prematurely
 # TODO: CMD Buffer (timeouts cause data desync)
+# TODO: Write err(str) and warn(str) and info(str) functions to issue data to user in a more organized manner
+# TODO: Subtle spell-casting (file_name and file_name.csv should be treated the same?)
 
 # For FW interaction
 import os
@@ -30,6 +32,10 @@ ser = None
 PORT = "COM4"
 BAUD = 115200 # BAUD is irrelevant for virtual COM (I just chose 115200 because it's somewhat standard) 
 connected = False
+
+# List of possible commands
+command_set = {"connect", "disconnect", "config", "calibrate", "sweep", "list", "retrieve", "delete"}
+
 
 ##############################
 ###vv GUI data/functions vv###
@@ -207,9 +213,14 @@ def parse_user_input(user_input):
     # The first part of the input is always the command
     cmd = parts[0]
 
+    if cmd not in command_set:
+        print(f"[ERROR] Command \'{cmd}\' not recognized")
+        return None, None
+
+    # If a command is issued while the firmware is disconnected, throw an error
     if cmd != "connect":
         if not connected:
-            print("[WARN] Not connected to firmware")
+            print("[ERROR] Not connected to firmware")
             return None, None
 
     # Next, based on the command, process further arguments into 'data' accordingly
