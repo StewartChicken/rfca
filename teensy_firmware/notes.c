@@ -146,3 +146,4 @@
 // - Added cal reset capabilities from CLI
 // - Moved FW connection to main in CLI
 // - Added manual connect/disconnect commands for CLI -> FW
+//   - Also did error handling, CLI starts by calling connectFW()

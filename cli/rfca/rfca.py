@@ -161,25 +161,39 @@ def split_data_by_port(df: pd.DataFrame) -> dict[int, pd.DataFrame]:
  * @return ser: Serial object for FW communication
  '''
 def connectFW(PORT, BAUD):
-    # Connect to Teensy
-    print("Connecting to Firmware...")
-    ser = serial.Serial(PORT, BAUD, timeout=1)
-    time.sleep(2)
-    print("Connected")
 
-    return ser
+    try:
+        # Connect to Teensy
+        print("\nConnecting to Firmware...")
+        ser = serial.Serial(PORT, BAUD, timeout=1)
+        time.sleep(2)
+        print("Connected")
+        return ser
+    except Exception as e:
+        print(f"[ERROR] {e}\n")
+        return None
+
+    
 
 '''
  * @brief Close connection to FW and cleanup
  * @param ser: Serial object for FW communication
  * @return: None
  '''
-def disconnectFW(ser):
-    print("Disconnecting from Firmware...")
-    ser.flush() # Flush data in buffer
-    ser.close()
-    time.sleep(2)
-    print("Disconnected")
+def disconnectFW():
+    global ser
+    
+
+    if ser is not None:
+        print("Disconnecting from Firmware...")
+        ser.flush() # Flush data in buffer
+        ser.close()
+        ser = None
+        print("Disconnected")
+    else: 
+        print("[INFO] Firmware already disconnected")
+
+    
 
 
 '''
@@ -248,7 +262,7 @@ def parse_user_input(user_input):
         ser = connectFW(PORT, BAUD)
         return None, None
     elif cmd == "disconnect":
-        disconnectFW(ser)
+        disconnectFW()
         return None, None
     else:
         # TODO: Throw error?
@@ -361,7 +375,6 @@ def wait_for_response(ser, timeout=15):
  * @return None
  '''
 def processResponse(response_data):
-
     # Handle errors returned by the firmware
     if (response_data.get("status") != "OK"):
         processError() # TODO - this function is a blank placeholder
