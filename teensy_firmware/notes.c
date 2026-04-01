@@ -152,3 +152,4 @@
 //   - Modified this so the loop doesn't exit
 // - CLI throws error on unrecognized command
 // - Added 'clear/cls' commands
+// - Added 'freq' & 'port' dev commands from CLI

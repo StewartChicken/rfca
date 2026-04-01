@@ -15,7 +15,6 @@
 # TODO: Subtle spell-casting (file_name and file_name.csv should be treated the same?)
 
 
-
 # For FW interaction
 import os
 import sys
@@ -37,7 +36,7 @@ BAUD = 115200 # BAUD is irrelevant for virtual COM (I just chose 115200 because 
 connected = False
 
 # List of possible commands
-command_set = {"connect", "disconnect", "config", "calibrate", "sweep", "list", "retrieve", "delete", "clear", "cls"}
+command_set = {"connect", "disconnect", "config", "calibrate", "sweep", "list", "retrieve", "delete", "clear", "cls", "freq", "port"}
 
 
 ##############################
@@ -238,10 +237,12 @@ def parse_user_input(user_input):
     # The first part of the input is always the command
     cmd = parts[0]
 
+    # Check validity of commands
     if cmd not in command_set:
         print(f"[ERROR] Command \'{cmd}\' not recognized")
         return None, None
-    
+
+
     if cmd == "clear" or cmd == "cls":
         clear_terminal()
         print_rfca_header()
@@ -307,9 +308,16 @@ def parse_user_input(user_input):
     elif cmd == "disconnect":
         disconnectFW()
         return None, None
+    
+    # These are dev/debugging commands
+    elif cmd == "freq": # {cmd: 'freq', data: 3500} # Set ADF output to 3500 MHz
+        data = parts[1]
+    elif cmd == "port":
+        data = parts[1] # {cmd: 'port', data: 3} # Open a specific output port
+
     else:
-        # TODO: Throw error?
-        data = None
+        # This shouldn't happen because we check cmd validity at the beginning of this function
+        return None, None
 
     # After processing, return both the command and its data
     return cmd, data
