@@ -147,3 +147,6 @@
 // - Moved FW connection to main in CLI
 // - Added manual connect/disconnect commands for CLI -> FW
 //   - Also did error handling, CLI starts by calling connectFW()
+// - Update log amp power curve coefficients
+// - CLI would terminate when calling commands while disconnected from FW
+//   - Modified this so the loop doesn't exit

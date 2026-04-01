@@ -29,6 +29,7 @@ from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, Q
 ser = None
 PORT = "COM4"
 BAUD = 115200 # BAUD is irrelevant for virtual COM (I just chose 115200 because it's somewhat standard) 
+connected = False
 
 ##############################
 ###vv GUI data/functions vv###
@@ -161,19 +162,19 @@ def split_data_by_port(df: pd.DataFrame) -> dict[int, pd.DataFrame]:
  * @return ser: Serial object for FW communication
  '''
 def connectFW(PORT, BAUD):
-
+    global connected
     try:
         # Connect to Teensy
         print("\nConnecting to Firmware...")
         ser = serial.Serial(PORT, BAUD, timeout=1)
         time.sleep(2)
+        connected = True
         print("Connected")
         return ser
     except Exception as e:
         print(f"[ERROR] {e}\n")
         return None
 
-    
 
 '''
  * @brief Close connection to FW and cleanup
@@ -182,17 +183,14 @@ def connectFW(PORT, BAUD):
  '''
 def disconnectFW():
     global ser
+    global connected
     
-
-    if ser is not None:
-        print("Disconnecting from Firmware...")
-        ser.flush() # Flush data in buffer
-        ser.close()
-        ser = None
-        print("Disconnected")
-    else: 
-        print("[INFO] Firmware already disconnected")
-
+    print("Disconnecting from Firmware...")
+    ser.flush() # Flush data in buffer
+    ser.close()
+    ser = None
+    connected = False
+    print("Disconnected")
     
 
 
@@ -209,6 +207,10 @@ def parse_user_input(user_input):
     # The first part of the input is always the command
     cmd = parts[0]
 
+    if cmd != "connect":
+        if not connected:
+            print("[WARN] Not connected to firmware")
+            return None, None
 
     # Next, based on the command, process further arguments into 'data' accordingly
 
