@@ -3,7 +3,6 @@
 # TODO: Make COM selection dynamic
 # TODO: Error handling/communication
 # TODO: Cleanup CLI UX
-# TODO: Add debug/dev functionality from CLI
 # TODO: Make GUI more legible (BIGGER = BETTER)
 # TODO: Add Pwr up cmd
 # TODO: Add Pwr down cmd
@@ -38,6 +37,22 @@ connected = False
 # List of possible commands
 command_set = {"connect", "disconnect", "config", "calibrate", "sweep", "list", "retrieve", "delete", "clear", "cls", "freq", "port"}
 
+
+##############################
+#####vv Info functions vv#####
+
+# Error message to CLI
+def err(msg):
+    print(f"[ERROR] {msg}\n")
+
+# Warning message to CLI
+def warn(msg):
+    print(f"[WARN] {msg}\n")
+
+# General information to CLI
+def info(msg):
+    print(f"[INFO] {msg}\n")
+    
 
 ##############################
 ###vv GUI data/functions vv###
@@ -180,7 +195,7 @@ def connectFW(PORT, BAUD):
         print("Connected")
         return ser
     except Exception as e:
-        print(f"[ERROR] {e}\n")
+        err(f"Could not connect to firmware: {e}")
         return None
 
 
@@ -193,12 +208,12 @@ def disconnectFW():
     global ser
     global connected
     
-    print("Disconnecting from Firmware...")
+    info("Disconnecting from Firmware...")
     ser.flush() # Flush data in buffer
     ser.close()
     ser = None
     connected = False
-    print("Disconnected")
+    info("Disconnected")
     
 '''
  * @brief Clear terminal depending on OS, handle error if unable
@@ -239,7 +254,7 @@ def parse_user_input(user_input):
 
     # Check validity of commands
     if cmd not in command_set:
-        print(f"[ERROR] Command \'{cmd}\' not recognized")
+        err(f"Command \'{cmd}\' not recognized")
         return None, None
 
 
@@ -251,7 +266,7 @@ def parse_user_input(user_input):
     # If a command is issued while the firmware is disconnected, throw an error
     if cmd != "connect":
         if not connected:
-            print("[ERROR] Not connected to firmware")
+            err("Not connected to firmware")
             return None, None
 
     # Next, based on the command, process further arguments into 'data' accordingly
@@ -262,7 +277,7 @@ def parse_user_input(user_input):
             with open('./config.json', "r", encoding="utf-8") as f:
                 data = json.load(f)
         except Exception as e:
-            print(f"Failed to read/parse JSON file: {e}")
+            err(f"Failed to read/parse JSON file: {e}")
             return None, None # TODO, check this error handling
         
     # 'calibrate' needs to store port info in 'data'
@@ -271,12 +286,13 @@ def parse_user_input(user_input):
         in_port = parts[2]  # Must be between 1 and 10 inclusive
         set_cal = '-1'        # -1 by default indicates running typical calibration
 
+        # Argument validation
         if((int)(out_port) < 1 or (int)(out_port) > 8):
-            print(f"\n[WARN] output port out of range: {out_port} is not within [1, 8]")
-            return None, None # TODO Error handling
+            err(f"Argument (out_port) out of range: {out_port} is not within [1, 8]")
+            return None, None
         elif((int)(in_port) < 1 or (int)(in_port) > 10):
-            print(f"\n[WARN] input port out of range: {in_port} is not within [1, 10]")
-            return None, None # TODO Error handling
+            err(f"Argument (in_port) of range: {in_port} is not within [1, 10]")
+            return None, None 
 
         # If a set_cal parameter is passed, set the cal value to that argument
         try:
@@ -353,7 +369,7 @@ def sendJson(cmd, data, ser):
  * @return None
  '''
 def wait_for_response(ser, timeout=15):
-    print("[INFO] Waiting firmware for response...")
+    info("Waiting firmware for response...")
 
     # To indicate status
     spinner = ["|", "/", "-", "\\"]
@@ -381,20 +397,20 @@ def wait_for_response(ser, timeout=15):
 
                     # 'ack' is sent by FW to acknowledge a received command.  FW sends this before beginning its processing
                     if msg.get("type") == "ack":
-                        print(f'[INFO] Firmware has received the \'{msg.get("cmd")}\' command.')
+                        info(f'Firmware has received the \'{msg.get("cmd")}\' command.')
                         continue
 
                     # 'complete' is sent by FW to indicate completion of command processing. 
                     elif msg.get("type") == "complete":
-                        print(f'[INFO] Firmware has finished processing the \'{msg.get("cmd")}\' command.')
+                        info(f'Firmware has finished processing the \'{msg.get("cmd")}\' command.')
                         return
                     
                     # 'progress' is sent by FW to inform CLI of its current step in processing
                     elif msg.get("type") == "progress":
                         if(msg.get("cmd") == "sweep"):
-                            print(f'[INFO] Measuring frequency: {msg.get("data").get("frequency")} MHz')
+                            info(f'Measuring frequency: {msg.get("data").get("frequency")} MHz')
                         elif(msg.get("cmd") == "calibrate"):
-                            print(f'[INFO] Calibrating for frequency: {msg.get("data").get("frequency")} MHz')
+                            info(f'Calibrating for frequency: {msg.get("data").get("frequency")} MHz')
 
                     # Otherwise, process response
                     elif msg.get("type") == "data":
@@ -410,7 +426,7 @@ def wait_for_response(ser, timeout=15):
                     pass
 
             except Exception as e:
-                print(f"[ERROR] Failed to read serial response: {e}")
+                err(f"Failed to read serial response: {e}")
 
         # Spinner while waiting
         #print(f"\r[INFO]{spinner[spinner_idx % 4]}", end="", flush=True)
@@ -418,7 +434,7 @@ def wait_for_response(ser, timeout=15):
         time.sleep(0.1)
 
     # Timeout warning
-    print("\n[WARN] Timed out while waiting for response.\n")
+    warn("Timed out while waiting for response.")
 
 '''
  * @brief Process errors or data sent by FW
@@ -447,23 +463,23 @@ def processResponse(response_data):
 def processData(cmd, data):
     if(cmd == "config"):
         config_params = data.get("config_params")
-        print('[INFO] Configured RFCA with the following parameters:')
-        print(f'[INFO] {config_params}')
+        info('Configured RFCA with the following parameters:')
+        info(f'{config_params}')
     elif(cmd == "calibrate"):
         cal_data = data.get("cal_data")
-        print('[INFO] Recorded the following calibration data')
-        print(f'[INFO] {cal_data}')
+        info('Recorded the following calibration data')
+        info(f'{cal_data}')
     elif(cmd == "sweep"):
         config_params = data.get("config_params")
-        print("[INFO] Completed sweep with the following parameters:")
-        print(f'[INFO] {config_params}')
+        info("sweep with the following parameters:")
+        info(f'{config_params}')
     elif(cmd == "list"):
         files = data.get("files")
 
         if(len(files) == 0):
-            print("[INFO] Found 0 files")
+            info("Found 0 files")
         else:
-            print(f"[INFO] Found {len(files)} file(s): \n")
+            info(f"Found {len(files)} file(s): \n")
             for file in files:
                 print(file)
 
@@ -484,10 +500,10 @@ def processData(cmd, data):
             with open(file_path, "w", encoding="utf-8") as f:
                 f.write(sweep_data)
 
-            print(f"[INFO] Saved sweep to: {file_path}")
+            info(f"Saved sweep to: {file_path}")
 
         except Exception as e:
-            print(f"[ERROR] Failed to save CSV: {e}")
+            err(f"Failed to save CSV: {e}")
 
         # Use the global csv_path, not a local instance
         global csv_path
@@ -497,11 +513,10 @@ def processData(cmd, data):
 
     elif(cmd == "delete"): 
         sweep_name = data.get("sweep_name")
-        print(f"[INFO] Deleted {sweep_name} from the firmware")
+        info(f"Deleted {sweep_name} from the firmware")
     else:
         # This shouldn't happen TODO: Throw error?
-        print("[ERROR] Unrecognized CMD")
-        print(cmd)
+        err(f"Unrecognized CMD: {cmd}")
 
 # TODO
 def processError():
@@ -544,9 +559,9 @@ def main():
                 pass
 
         except KeyboardInterrupt:
-            print("\n[INFO] Interrupted. Type 'q' to quit.")
+            info("Interrupted. Type 'q' to quit.")
         except EOFError:
-            print("\n[INFO] EOF received. Exiting.")
+            info("EOF received. Exiting.")
             break
 
 
