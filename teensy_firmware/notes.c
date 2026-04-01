@@ -151,3 +151,4 @@
 // - CLI would terminate when calling commands while disconnected from FW
 //   - Modified this so the loop doesn't exit
 // - CLI throws error on unrecognized command
+// - Added 'clear/cls' commands

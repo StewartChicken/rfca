@@ -5,17 +5,20 @@
 # TODO: Cleanup CLI UX
 # TODO: Add debug/dev functionality from CLI
 # TODO: Make GUI more legible (BIGGER = BETTER)
-# TODO: Signal BOOT up
+# TODO: Add Pwr up cmd
 # TODO: Add Pwr down cmd
+# TODO: Add 'help' command
 # TODO: Move sweep data save loc to folder (not root dir)
-# TODO: Add clear/cls commands
 # TODO: Progress reports from FW increase timeout so program doesn't terminate prematurely
 # TODO: CMD Buffer (timeouts cause data desync)
 # TODO: Write err(str) and warn(str) and info(str) functions to issue data to user in a more organized manner
 # TODO: Subtle spell-casting (file_name and file_name.csv should be treated the same?)
 
+
+
 # For FW interaction
 import os
+import sys
 import json
 import shlex
 import serial
@@ -34,7 +37,7 @@ BAUD = 115200 # BAUD is irrelevant for virtual COM (I just chose 115200 because 
 connected = False
 
 # List of possible commands
-command_set = {"connect", "disconnect", "config", "calibrate", "sweep", "list", "retrieve", "delete"}
+command_set = {"connect", "disconnect", "config", "calibrate", "sweep", "list", "retrieve", "delete", "clear", "cls"}
 
 
 ##############################
@@ -198,7 +201,29 @@ def disconnectFW():
     connected = False
     print("Disconnected")
     
+'''
+ * @brief Clear terminal depending on OS, handle error if unable
+ * @return: None
+ '''   
+def clear_terminal():
+    try:
+        result = os.system('cls' if os.name == 'nt' else 'clear')
 
+        if result != 0:
+            print("(unable to clear)", file=sys.stderr)
+
+    except Exception:
+        print("(unable to clear)", file=sys.stderr)
+
+
+'''
+ * @brief Print prompts to user
+ * @return: None
+ ''' 
+def print_rfca_header():
+    print("=== RFCA CLI ===")
+    print("Enter commands below")
+    print("Type 'q' to quit\n")
 
 '''
  * @brief Parses cmd and data from raw user CLI input
@@ -215,6 +240,11 @@ def parse_user_input(user_input):
 
     if cmd not in command_set:
         print(f"[ERROR] Command \'{cmd}\' not recognized")
+        return None, None
+    
+    if cmd == "clear" or cmd == "cls":
+        clear_terminal()
+        print_rfca_header()
         return None, None
 
     # If a command is issued while the firmware is disconnected, throw an error
@@ -475,12 +505,11 @@ def main():
     global ser
     global PORT
     global BAUD
+
+    # Start on an empty screen
+    clear_terminal()
     ser = connectFW(PORT, BAUD)
-    
-    # CLI User Prompts
-    print("=== RFCA CLI ===")
-    print("Enter commands below")
-    print("Type 'q' to quit\n")
+    print_rfca_header()
 
     while True:
         try:
