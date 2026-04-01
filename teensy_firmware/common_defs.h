@@ -48,6 +48,17 @@ static const uint8_t log_amp_pins[10] = {
 #define ADC_RESOLUTION              10   // 10-bit, max 12?
 #define ADC_MAX_VALUE               1023 // default 10-bit resolution
 
+// LogAmp Power curve parameters
+#define LOG_AMP_SLOPE_3             0.0221
+#define LOG_AMP_SLOPE_2            -0.4935
+#define LOG_AMP_SLOPE_1             0.2023
+#define LOG_AMP_SLOPE_0             53.819
+#define LOG_AMP_INTERCEPT_4         0.0932
+#define LOG_AMP_INTERCEPT_3        -0.8662
+#define LOG_AMP_INTERCEPT_2         2.6089
+#define LOG_AMP_INTERCEPT_1        -2.8576
+#define LOG_AMP_INTERCEPT_0        -61.804
+
 // SP8T Pins
 #define SP8T_PIN_LS                 2
 #define SP8T_PIN_ENABLE             3

@@ -331,9 +331,17 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
       ADF_write_freq(freq);
       delay(500);
 
-      // Slope and Intercept depend on frequency
-      float slope = 0.00434*pow(((float)freq / 1000.0), 3) - 0.0441*pow(((float)freq / 1000.0), 2) + 0.123*((float)freq / 1000.0) + 18.6;
-      float intercept = -0.0153*pow(((float)freq / 1000.0), 3) + 0.209*pow(((float)freq / 1000.0), 2) - 1.21*((float)freq / 1000.0) - 61.8;
+      // Slope and Intercept depend on frequency in GHz
+      float slope = LOG_AMP_SLOPE_3*pow(((float)freq / 1000.0), 3) 
+                    + LOG_AMP_SLOPE_2*pow(((float)freq / 1000.0), 2) 
+                    + LOG_AMP_SLOPE_1*((float)freq / 1000.0) 
+                    + LOG_AMP_SLOPE_0;
+
+      float intercept = LOG_AMP_INTERCEPT_4*pow(((float)freq / 1000.0), 4) 
+                        + LOG_AMP_INTERCEPT_3*pow(((float)freq / 1000.0), 3) 
+                        + LOG_AMP_INTERCEPT_2*pow(((float)freq / 1000.0), 2) 
+                        + LOG_AMP_INTERCEPT_1*((float)freq / 1000.0) 
+                        + LOG_AMP_INTERCEPT_0;
 
       float total_power = 0;
       const uint16_t WINDOW = 200;
@@ -448,9 +456,17 @@ static status_t conduct_sweep(const char* sweep_name) {
       
       for(int i = 0; i < NUM_LOG_AMPS; i++) {
 
-        // Slope and Intercept depend on frequency
-        float slope = 0.00434*pow(((float)curr_freq / 1000.0), 3) - 0.0441*pow(((float)curr_freq / 1000.0), 2) + 0.123*((float)curr_freq / 1000.0) + 18.6;
-        float intercept = -0.0153*pow(((float)curr_freq / 1000.0), 3) + 0.209*pow(((float)curr_freq / 1000.0), 2) - 1.21*((float)curr_freq / 1000.0) - 61.8;
+        // Slope and Intercept depend on frequency in GHz
+        float slope = LOG_AMP_SLOPE_3*pow(((float)curr_freq / 1000.0), 3) 
+                      + LOG_AMP_SLOPE_2*pow(((float)curr_freq / 1000.0), 2) 
+                      + LOG_AMP_SLOPE_1*((float)curr_freq / 1000.0) 
+                      + LOG_AMP_SLOPE_0;
+
+        float intercept = LOG_AMP_INTERCEPT_4*pow(((float)curr_freq / 1000.0), 4) 
+                          + LOG_AMP_INTERCEPT_3*pow(((float)curr_freq / 1000.0), 3) 
+                          + LOG_AMP_INTERCEPT_2*pow(((float)curr_freq / 1000.0), 2) 
+                          + LOG_AMP_INTERCEPT_1*((float)curr_freq / 1000.0) 
+                          + LOG_AMP_INTERCEPT_0;
 
         int raw = analogRead(log_amp_pins[i]);
         float voltage = (raw * (float)ADC_REF_VOLTAGE) / (float)ADC_MAX_VALUE; // Convert raw ADC value to voltage (V)
@@ -460,7 +476,7 @@ static status_t conduct_sweep(const char* sweep_name) {
 #endif
 
         // Power (dB) = (Measured Voltage (mV) / Slope) + Intercept
-        // ^^^ This comes from the ADL5507 Log-Ammp datasheet
+        // ^^^ This comes from the ADL5902 Log-Ammp datasheet
         float power = (voltage * 1000.0) / slope + intercept;
 
         data[i + 2] = voltage;
