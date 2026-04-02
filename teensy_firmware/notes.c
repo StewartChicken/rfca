@@ -155,3 +155,4 @@
 // - Added 'freq' & 'port' dev commands from CLI
 // - Added err, warn, info commands
 // - Removed processing spinner
+// - Sweep data saved to a dedicated directory rather than root

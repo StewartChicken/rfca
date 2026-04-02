@@ -2,17 +2,17 @@
 # TODO: Create consistent dependency environment (multiple libraries for 'serial')
 # TODO: Make COM selection dynamic
 # TODO: Error handling/communication
+# TODO: CLI Argument validation
 # TODO: Cleanup CLI UX
 # TODO: Make GUI more legible (BIGGER = BETTER)
 # TODO: Add Pwr up cmd
 # TODO: Add Pwr down cmd
 # TODO: Functionality to close output of ADF
 # TODO: Add 'help' command
-# TODO: Move sweep data save loc to folder (not root dir)
 # TODO: Progress reports from FW increase timeout so program doesn't terminate prematurely
 # TODO: CMD Buffer (timeouts cause data desync)
 # TODO: Subtle spell-casting (file_name and file_name.csv should be treated the same?)
-# TODO: port cmd returns error
+
 
 
 # For FW interaction
@@ -500,7 +500,7 @@ def processData(cmd, data):
         script_dir = os.path.dirname(os.path.abspath(__file__))
 
         # Construct file path
-        file_path = os.path.join(script_dir, f"{sweep_name}.csv")
+        file_path = os.path.join(script_dir, f"./sweep_data/{sweep_name}.csv")
 
         try:
             with open(file_path, "w", encoding="utf-8") as f:
