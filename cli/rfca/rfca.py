@@ -1,6 +1,5 @@
 
 # TODO: Create consistent dependency environment (multiple libraries for 'serial')
-# TODO: Make COM selection dynamic
 # TODO: CLI Argument validation
 # TODO: Make GUI more legible (BIGGER = BETTER)
 # TODO: Add Pwr up cmd
@@ -77,13 +76,17 @@ def initGUI():
         tab = QWidget()
         GUI.tabs.addTab(tab, f"Port {i}")
 
+    app_font = GUI.font()
+    app_font.setPointSize(12)
+    GUI.setFont(app_font)
+
     # Central plot
     GUI.plot_widget = pg.PlotWidget()
     GUI.plot_widget.setBackground("w")
     GUI.plot_widget.showGrid(x=True, y=True, alpha=0.2)
     GUI.plot_widget.setLabel("bottom", "Frequency")
     GUI.plot_widget.setLabel("left", "Value")
-    GUI.plot_widget.setTitle("Measurement Plot Area")
+    GUI.plot_widget.setTitle("Measurement Plot Area,", size="16pt")
     GUI.plot_widget.addLegend()
 
     layout.addWidget(GUI.tabs, stretch=0)
@@ -123,7 +126,7 @@ def plot_port_data(port: int, port_data):
             freq,
             df[col].to_numpy(),
             name=col,
-            pen=pg.intColor(i, hues=10),
+            pen=pg.mkPen(pg.intColor(i, hues=10), width=2),
         )
 
 '''
