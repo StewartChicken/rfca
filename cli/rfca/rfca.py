@@ -497,10 +497,14 @@ def processData(cmd, data):
         sweep_data = data.get("sweep_data")
         
         # Get directory of this script
-        script_dir = os.path.dirname(os.path.abspath(__file__))
+        script_dir = Path(__file__).resolve().parent
+
+        # Create sweep_data directory if it doesn't exist
+        sweep_dir = script_dir / "sweep_data"
+        sweep_dir.mkdir(parents=True, exist_ok=True)
 
         # Construct file path
-        file_path = os.path.join(script_dir, f"./sweep_data/{sweep_name}.csv")
+        file_path = sweep_dir / f"{sweep_name}.csv"
 
         try:
             with open(file_path, "w", encoding="utf-8") as f:
@@ -511,10 +515,11 @@ def processData(cmd, data):
         except Exception as e:
             err(f"Failed to save CSV: {e}")
 
-        # Use the global csv_path, not a local instance
+        # Use the global csv_path
         global csv_path
-        csv_path = Path(f"{sweep_name}.csv")
-        on_tab_changed(0) # Set initial tab (0-7)
+        csv_path = file_path
+
+        on_tab_changed(0)  # Set initial tab (0-7)
         GUI.show()
 
     elif(cmd == "delete"): 
