@@ -268,6 +268,8 @@ def print_rfca_header():
     print("Enter commands below")
     print("Type 'q' to quit\n")
 
+
+
 '''
  * @brief Parses cmd and data from raw user CLI input
  * @param user_input: String w/ user input
@@ -276,12 +278,12 @@ def print_rfca_header():
 def parse_user_input(user_input):
 
     # Raw inputs are space-delimited
-    parts = shlex.split(user_input) 
+    #args = shlex.split(user_input)
+    #parts = validate_input_args(args) # Validate command and arguments
+    parts = shlex.split(user_input)
 
-    # The first part of the input is always the command
+    # Check cmd validity
     cmd = parts[0]
-
-    # Check validity of commands
     if cmd not in command_set:
         err(f"Command \'{cmd}\' not recognized")
         return None, None
@@ -301,6 +303,7 @@ def parse_user_input(user_input):
     # Next, based on the command, process further arguments into 'data' accordingly
 
     # 'config' needs to open the ./config.json file and store in 'data'
+    # There are no additional arguments required for this command
     if cmd == "config":
         try: 
             with open('./config.json', "r", encoding="utf-8") as f:
@@ -311,6 +314,12 @@ def parse_user_input(user_input):
         
     # 'calibrate' needs to store port info in 'data'
     elif cmd == "calibrate": 
+
+        # 'calibrate' cmd requires two additional arguments minimum: calibrate out in
+        if len(parts) < 3:
+            err("The 'calibrate' command requires two positional arguments: (int)out and (int)in")
+            return None, None
+
         out_port = parts[1] # Must be between 1 and 8 inclusive
         in_port = parts[2]  # Must be between 1 and 10 inclusive
         set_cal = '-1'        # -1 by default indicates running typical calibration
@@ -324,19 +333,38 @@ def parse_user_input(user_input):
             return None, None 
 
         # If a set_cal parameter is passed, set the cal value to that argument
-        try:
+        # CLI Args: calibrate out in set
+        if len(parts) == 4:
             set_cal = parts[3] 
-        except Exception as e:
-            pass
 
         data = [out_port, in_port, set_cal]
 
     # 'sweep', 'retrieve', 'delete' each stores sweep name information into 'data'
     elif cmd == "sweep":
+
+        # 'sweep' cmd requires one additional argument: sweep sweep_name
+        if len(parts) < 2:
+            err("The 'sweep' command requires an argument: (string)sweep_name")
+            return None, None
+        
         data = parts[1]
+        
     elif cmd == "retrieve":
+
+        # 'retrieve' cmd requires one additional argument: retrieve sweep_name
+        if len(parts) < 2:
+            err("The 'retrieve' command requires an argument: (string)sweep_name")
+            return None, None
+        
         data = parts[1]
+
     elif cmd == "delete":
+
+        # 'delete' cmd requires one additional argument: delete sweep_name
+        if len(parts) < 2:
+            err("The 'delete' command requires an argument: (string)sweep_name")
+            return None, None
+        
         data = parts[1]
 
     # 'list' has no data
@@ -354,21 +382,32 @@ def parse_user_input(user_input):
     
     # These are dev/debugging commands
     elif cmd == "freq": # {cmd: 'freq', data: 3500} # Set ADF output to 3500 MHz
+
+        # 'freq' cmd requires one additional argument: freq frequency
+        if len(parts) < 2:
+            err("The 'freq' command requires an argument: (int)frequency (MHz)")
+            return None, None
+        
         data = parts[1]
 
         # Argument validation
         if((int)(data) < 800 or (int)(data) > 6800):
             err(f"Argument (frequency) out of range: {data} MHz is not within [800, 6800] Mhz")
             return None, None
+        
     elif cmd == "port":
+
+        # 'port' cmd requires one additional argument: port out_port
+        if len(parts) < 2:
+            err("The 'port' command requires an argument: (int)port [1, 8]")
+            return None, None
+        
         data = parts[1] # {cmd: 'port', data: 1} # Open a specific output port
 
         # Argument validation
         if((int)(data) < 1 or (int)(data) > 8):
             err(f"Argument (port) out of range: {data} is not within [1, 8]")
             return None, None
-        
-        
 
     else:
         # This shouldn't happen because we check cmd validity at the beginning of this function
