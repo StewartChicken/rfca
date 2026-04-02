@@ -157,3 +157,4 @@
 // - Removed processing spinner
 // - Sweep data saved to a dedicated directory rather than root
 // - COM port selection is dynamic 
+// - Basic argument validation

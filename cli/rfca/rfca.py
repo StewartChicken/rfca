@@ -1,6 +1,5 @@
 
 # TODO: Create consistent dependency environment (multiple libraries for 'serial')
-# TODO: CLI Argument validation/sanitation
 # TODO: Add Pwr up cmd
 # TODO: Add Pwr down cmd
 # TODO: Functionality to close output of ADF
@@ -32,7 +31,7 @@ ser = None
 connected = False # Connected to FW?
 
 # List of possible commands
-command_set = {"connect", "disconnect", "config", "calibrate", "sweep", "list", "retrieve", "delete", "clear", "cls", "freq", "port"}
+command_set = {"config", "calibrate", "sweep", "list", "retrieve", "delete", "connect", "disconnect", "clear", "cls", "freq", "port"}
 
 
 ##############################
