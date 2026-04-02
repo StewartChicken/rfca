@@ -2,7 +2,6 @@
 #ifndef _COMMON_DEFS_H
 #define _COMMON_DEFS_H
 
-
 // Power control
 #define ADM_POS_3v3                 8
 #define ADM_NEG_3v3                 9

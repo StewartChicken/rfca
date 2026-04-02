@@ -1,9 +1,7 @@
 
 # TODO: Create consistent dependency environment (multiple libraries for 'serial')
 # TODO: Make COM selection dynamic
-# TODO: Error handling/communication
 # TODO: CLI Argument validation
-# TODO: Cleanup CLI UX
 # TODO: Make GUI more legible (BIGGER = BETTER)
 # TODO: Add Pwr up cmd
 # TODO: Add Pwr down cmd
@@ -14,13 +12,13 @@
 # TODO: Subtle spell-casting (file_name and file_name.csv should be treated the same?)
 
 
-
 # For FW interaction
 import os
 import sys
 import json
 import shlex
 import serial
+from serial.tools import list_ports
 import time
 
 # For GUI
@@ -31,9 +29,7 @@ from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, Q
 
 # For communication w/ firmware.  NULL 'till main runs
 ser = None
-PORT = "COM4"
-BAUD = 115200 # BAUD is irrelevant for virtual COM (I just chose 115200 because it's somewhat standard) 
-connected = False
+connected = False # Connected to FW?
 
 # List of possible commands
 command_set = {"connect", "disconnect", "config", "calibrate", "sweep", "list", "retrieve", "delete", "clear", "cls", "freq", "port"}
@@ -180,20 +176,43 @@ def split_data_by_port(df: pd.DataFrame) -> dict[int, pd.DataFrame]:
 ####vvv CLI functions vvv####
 
 '''
+ * @brief Enumerate connected USB devices and get COM port of Teensy4.1 
+ * @return COM port number of Teensy4.1 or -1 if dne
+ '''
+def getTeensyPort():
+    teensyVID = 5824 
+    teensyPID = 1155
+    for port in list_ports.comports():
+        if port.vid is None or port.pid is None:
+            continue
+
+        if port.vid == teensyVID and port.pid == teensyPID:
+            return port.device  # COM port
+        
+    return None # No Teensy4.1 found
+
+'''
  * @brief Open connection to FW
  * @param PORT: COM port connected to FW
  * @param BAUD: Baud rate of communication, this value is irrelevant for virutal COM
  * @return ser: Serial object for FW communication
  '''
-def connectFW(PORT, BAUD):
+def connectFW():
     global connected
+    BAUD = 115200 # BAUD is irrelevant for virtual COM (I just chose 115200 because it's somewhat standard) 
+    PORT = getTeensyPort()
+
+    if PORT is None:
+        err("No Teensy4.1 device found, could not connect to firmware")
+        return None
+
     try:
         # Connect to Teensy
-        print("\nConnecting to Firmware...")
+        info("Connecting to Firmware...")
         ser = serial.Serial(PORT, BAUD, timeout=1)
         time.sleep(2)
         connected = True
-        print("Connected")
+        info(f"Connected at {PORT}")
         return ser
     except Exception as e:
         err(f"Could not connect to firmware: {e}")
@@ -279,7 +298,7 @@ def parse_user_input(user_input):
                 data = json.load(f)
         except Exception as e:
             err(f"Failed to read/parse JSON file: {e}")
-            return None, None # TODO, check this error handling
+            return None, None 
         
     # 'calibrate' needs to store port info in 'data'
     elif cmd == "calibrate": 
@@ -318,9 +337,7 @@ def parse_user_input(user_input):
     # Manual connect/disconnect commands
     elif cmd == "connect":
         global ser
-        global PORT
-        global BAUD
-        ser = connectFW(PORT, BAUD)
+        ser = connectFW()
         return None, None
     elif cmd == "disconnect":
         disconnectFW()
@@ -544,14 +561,10 @@ def processError():
 
 
 def main():
-
     global ser
-    global PORT
-    global BAUD
-
-    # Start on an empty screen
+    
     clear_terminal()
-    ser = connectFW(PORT, BAUD)
+    ser = connectFW()
     print_rfca_header()
 
     while True:
@@ -561,7 +574,8 @@ def main():
 
             # Quit condition
             if user_input.lower() in ["q", "quit", "exit"]:
-                print("Exiting RFCA CLI...")
+                info("Exiting RFCA CLI...")
+                disconnectFW()
                 break
 
             # Ignore empty input
@@ -575,8 +589,6 @@ def main():
             if (cmd is not None):
                 sendJson(cmd, data, ser)
                 wait_for_response(ser, timeout=60) # 60 second time out
-            else:
-                pass
 
         except KeyboardInterrupt:
             info("Interrupted. Type 'q' to quit.")
