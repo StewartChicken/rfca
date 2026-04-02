@@ -1,10 +1,11 @@
 
 # TODO: Create consistent dependency environment (multiple libraries for 'serial')
-# TODO: CLI Argument validation
-# TODO: Make GUI more legible (BIGGER = BETTER)
+# TODO: CLI Argument validation/sanitation
 # TODO: Add Pwr up cmd
 # TODO: Add Pwr down cmd
 # TODO: Functionality to close output of ADF
+# TODO: Add status cmd (Connection information?)
+# TODO: Retrieve cmd shouldn't create .csv data if file dne in fw
 # TODO: Add 'help' command
 # TODO: Progress reports from FW increase timeout so program doesn't terminate prematurely
 # TODO: CMD Buffer (timeouts cause data desync)
@@ -84,11 +85,16 @@ def initGUI():
     GUI.plot_widget = pg.PlotWidget()
     GUI.plot_widget.setBackground("w")
     GUI.plot_widget.showGrid(x=True, y=True, alpha=0.2)
-    GUI.plot_widget.setLabel("bottom", "Frequency")
-    GUI.plot_widget.setLabel("left", "Value")
-    GUI.plot_widget.setTitle("Measurement Plot Area,", size="16pt")
-    GUI.plot_widget.addLegend()
+    GUI.plot_widget.setLabel("bottom", '<span style="font-size:14pt;">Frequency (MHz)</span>')
+    GUI.plot_widget.setLabel("left", '<span style="font-size:14pt;">Signal Loss (dBm)</span>')
+    GUI.plot_widget.setTitle("Measurement Plot Area,", size="18pt")
 
+    # Legend config
+    legend = GUI.plot_widget.addLegend()
+    legend.setLabelTextSize('10pt')
+    legend.setPen(pg.mkPen(200, 200, 200))  # border
+
+    # Construct GUI
     layout.addWidget(GUI.tabs, stretch=0)
     layout.addWidget(GUI.plot_widget, stretch=1)
 
@@ -111,13 +117,13 @@ def plot_port_data(port: int, port_data):
 
     # Check which ports have no data
     if port not in port_data:
-        GUI.plot_widget.setTitle(f"Port {port} (no data)")
+        GUI.plot_widget.setTitle(f"(no data)")
         return
 
     df = port_data[port]
     freq = df["frequency"].to_numpy()
 
-    GUI.plot_widget.setTitle(f"Port {port}")
+    GUI.plot_widget.setTitle(f"Signal Loss v. Frequency")
 
     # Plot each LogAmp value vs. Frequency
     for i in range(10):
