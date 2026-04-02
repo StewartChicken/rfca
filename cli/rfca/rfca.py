@@ -6,11 +6,13 @@
 # TODO: Make GUI more legible (BIGGER = BETTER)
 # TODO: Add Pwr up cmd
 # TODO: Add Pwr down cmd
+# TODO: Functionality to close output of ADF
 # TODO: Add 'help' command
 # TODO: Move sweep data save loc to folder (not root dir)
 # TODO: Progress reports from FW increase timeout so program doesn't terminate prematurely
 # TODO: CMD Buffer (timeouts cause data desync)
 # TODO: Subtle spell-casting (file_name and file_name.csv should be treated the same?)
+# TODO: port cmd returns error
 
 
 # For FW interaction
@@ -42,15 +44,15 @@ command_set = {"connect", "disconnect", "config", "calibrate", "sweep", "list", 
 
 # Error message to CLI
 def err(msg):
-    print(f"[ERROR] {msg}\n")
+    print(f"[ERROR] {msg}")
 
 # Warning message to CLI
 def warn(msg):
-    print(f"[WARN] {msg}\n")
+    print(f"[WARN] {msg}")
 
 # General information to CLI
 def info(msg):
-    print(f"[INFO] {msg}\n")
+    print(f"[INFO] {msg}")
     
 
 ##############################
@@ -327,8 +329,20 @@ def parse_user_input(user_input):
     # These are dev/debugging commands
     elif cmd == "freq": # {cmd: 'freq', data: 3500} # Set ADF output to 3500 MHz
         data = parts[1]
+
+        # Argument validation
+        if((int)(data) < 800 or (int)(data) > 6800):
+            err(f"Argument (frequency) out of range: {data} MHz is not within [800, 6800] Mhz")
+            return None, None
     elif cmd == "port":
-        data = parts[1] # {cmd: 'port', data: 3} # Open a specific output port
+        data = parts[1] # {cmd: 'port', data: 1} # Open a specific output port
+
+        # Argument validation
+        if((int)(data) < 1 or (int)(data) > 8):
+            err(f"Argument (port) out of range: {data} is not within [1, 8]")
+            return None, None
+        
+        
 
     else:
         # This shouldn't happen because we check cmd validity at the beginning of this function
@@ -506,8 +520,17 @@ def processData(cmd, data):
     elif(cmd == "delete"): 
         sweep_name = data.get("sweep_name")
         info(f"Deleted {sweep_name} from the firmware")
+
+    # Dev command
+    elif(cmd == "freq"):
+        frequency = data.get("freq")
+        power = data.get("power")
+        info(f"Measured {power} dBm at {frequency} MHz")
+    elif(cmd == "port"):
+        port = data.get("port")
+        info(f"Opened SP8T port {port}")
     else:
-        # This shouldn't happen TODO: Throw error?
+        # This shouldn't happen 
         err(f"Unrecognized CMD: {cmd}")
 
 # TODO

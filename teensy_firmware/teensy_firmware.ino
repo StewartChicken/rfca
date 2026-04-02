@@ -210,7 +210,7 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
 
         // Proceed w/ typical cal
         if(set == -1) {
-          sp8t_enablePort(out_port); // We're calibrating a single port
+          sp8t_enablePort((sp8t_port_t)out_port); // We're calibrating a single port
 
           // To transmit progress to CLI during cal process
           JsonDocument progress;
@@ -376,6 +376,10 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
       Serial.println(power);
 #endif 
 
+      response["status"] = "OK";
+      response["data"]["freq"] = freq;
+      response["data"]["power"] = total_power;
+
     } // END OF else if(strcmp(cmd, "freq") == 0)
 
     // Dev command, enable specific SP8T port
@@ -389,6 +393,10 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
 #if ENABLE_DEBUG_PRINTS
       Serial.println("Done enabling port");
 #endif
+
+      response["status"] = "OK";
+      response["data"]["port"] = port;
+
     } // END OF else if(strcmp(cmd, "port") == 0)
 
     // Send response

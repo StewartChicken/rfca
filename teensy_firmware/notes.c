@@ -154,3 +154,4 @@
 // - Added 'clear/cls' commands
 // - Added 'freq' & 'port' dev commands from CLI
 // - Added err, warn, info commands
+// - Removed processing spinner
