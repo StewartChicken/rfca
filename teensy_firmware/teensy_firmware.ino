@@ -322,7 +322,7 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
       response["data"]["TEMP"] = "BOOTUP";
     }
     else if(strcmp(cmd, "shutdown") == 0) {
-      rresponse["status"] = "OK";
+      response["status"] = "OK";
       response["data"]["TEMP"] = "SHUTDOWN"; 
     }
 
