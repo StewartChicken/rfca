@@ -1,9 +1,7 @@
 
 # TODO: ERROR HANDLING
-# TODO: Subtle spell-casting (file_name and file_name.csv should be treated the same?)
 # TODO: Figure out exactly what frequency range we're working with (upper/lower limit)
 # TODO: Organize and comment functions in files
-# TODO: Organize common_defs.h
 # TODO: Write documentation
 
 

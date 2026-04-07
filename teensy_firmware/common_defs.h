@@ -2,18 +2,30 @@
 #ifndef _COMMON_DEFS_H
 #define _COMMON_DEFS_H
 
-// Power control
-#define ADM_POS_3v3                 8
-#define ADM_NEG_3v3                 9
 
-// ADF5356 Pins
-#define ADF_LE                      36 // SPI0 CS  
-#define ADF_DATA                    11 // SPI0 MOSI 
-#define ADF_MISO                    12 // SPI0 MISO Not Used (Registers are write only)
-#define ADF_CLK                     13 // SPI0 CLK
 
-// SD card Pins
-#define SD_CS                       BUILTIN_SDCARD  // For Teensy 4.1 SDIO slot
+// ============================================================
+// Global Parameters/Data structures
+// ============================================================
+
+// DEBUG config (dev) flags
+#define ENABLE_DEBUG_PRINTS 0 // This needs to be 0 when using the CLI to communicate with the Teensy
+#define ENABLE_CALIBRATION  0 // Determines if calibration data is accounted for when recording loss measurements
+
+// Sweep parameters
+typedef struct {
+    sp8t_port_t sp8t_out_ports[8];  // 1-8, inclusive
+    uint32_t start_freq;            // MHz
+    uint32_t stop_freq;             //  MHz
+    uint32_t step_size;             // MHz
+    uint32_t delay_ms;              // ms
+} Config_t;
+
+
+
+// ============================================================
+// Logorithmic Amplifiers
+// ============================================================
 
 // Log Amp Pins
 #define LOG_AMP_0                   A0
@@ -27,6 +39,7 @@
 #define LOG_AMP_8                   A8
 #define LOG_AMP_9                   A9
 
+// For indexing
 static const uint8_t log_amp_pins[10] = {
     LOG_AMP_0,
     LOG_AMP_1,
@@ -58,6 +71,34 @@ static const uint8_t log_amp_pins[10] = {
 #define LOG_AMP_INTERCEPT_1        -2.8576
 #define LOG_AMP_INTERCEPT_0        -61.804
 
+
+
+// ============================================================
+// ADF5356 Frequency Synthesizer 
+// ============================================================
+
+// ADF5356 Pins
+#define ADF_LE                      36 // SPI0 CS  
+#define ADF_DATA                    11 // SPI0 MOSI 
+#define ADF_MISO                    12 // SPI0 MISO Not Used (Registers are write only)
+#define ADF_CLK                     13 // SPI0 CLK
+
+
+
+// ============================================================
+// Power Board 
+// ============================================================
+
+// Power EN pin definitions
+#define ADM_POS_3v3                 8
+#define ADM_NEG_3v3                 9
+
+
+
+// ============================================================
+// SP8T Switch Board
+// ============================================================
+
 // SP8T Pins
 #define SP8T_PIN_LS                 2
 #define SP8T_PIN_ENABLE             3
@@ -71,7 +112,7 @@ static const uint8_t log_amp_pins[10] = {
 #define SP8T_V2_MSK                 0x2 // 0x2 = 0b 0010
 #define SP8T_V3_MSK                 0x4 // 0x4 = 0b 0100
 
-
+// Data type
 typedef enum {
     UNDEF_PORT  = -1,
     SP8T_PORT_1 = 1,
@@ -84,21 +125,11 @@ typedef enum {
     SP8T_PORT_8,
 } sp8t_port_t;
 
-// Sweep parameters
-typedef struct {
-    sp8t_port_t sp8t_out_ports[8];  // 1-8, inclusive
-    uint32_t start_freq;            // MHz
-    uint32_t stop_freq;             //  MHz
-    uint32_t step_size;             // MHz
-    uint32_t delay_ms;              // ms
-} Config_t;
 
 
-// TODO: Remove?
-#define NUM_CONFIG_VALUES 17 // (1, 1) thru (8, 1) and (1, 1) thru (1, 10)   -> w/ (out, in)
-#define NUM_FREQ 35 // 800 MHz to 6.8 MHz w/ 100 MHz steps
-float cal_data[NUM_CONFIG_VALUES][NUM_FREQ]; 
-
+// ============================================================
+// Status/Error handling
+// ============================================================
 
 // Error handling
 typedef enum {
@@ -134,8 +165,6 @@ const char* status_to_str(status_t s)
     }
 }
 
-// DEBUG config (dev)
-#define ENABLE_DEBUG_PRINTS 0 // This needs to be 0 when using the CLI to communicate with the Teensy
-#define ENABLE_CALIBRATION  0 // Determines if calibration data is accounted for when recording loss measurements
+
 
 #endif // _COMMON_DEFS_H

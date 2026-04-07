@@ -164,6 +164,7 @@
 // - Added 'help' command to CLI for detailed info about command list
 // - CLI timeout increases if firmware is sending progress reports
 // - Remove .csv suffix from user inputs
+// - Reorganized common_defs.h
 //
 // To Test:
 // - Disabling RFOUTA works as expected
