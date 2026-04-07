@@ -33,7 +33,107 @@ ser = None
 connected = False # Connected to FW?
 
 # List of possible commands
-command_set = {"config", "calibrate", "sweep", "list", "retrieve", "delete", "connect", "disconnect", "boot", "shutdown", "clear", "cls", "freq", "port"}
+command_set = {
+                "config": {
+                    "description": "Configure RFCA sweep parameters in firmware using the config.json file in this directory",
+                    "usage": "config",
+                    "arguments": [],
+                    "examples": ["config"]
+                },
+                "calibrate": {
+                    "description": "Calibrate an RFCA output/input pair.",
+                    "usage": "calibrate <out_port> <in_port> [set]",
+                    "arguments": ["<out_port>    Output port number (1-8)", 
+                                  "<in_port>     Input port number (1-10)", 
+                                  "[set]         Optional calibration value. If omitted, value is measured from ADC"],
+                    "examples": ["calibrate 1 10", 
+                                 "calibrate 4 1", 
+                                 "calibrate 1 1 0"]
+                }, 
+                "sweep": {
+                    "description": "Begin a frequency sweep and measure loss data according to firmware config",
+                    "usage": "sweep <sweep_name>",
+                    "arguments": ["<sweep_name>    Name of sweep data as it will be saved in the firmware"],
+                    "examples": ["sweep my_cool_sweep"]
+                }, 
+                "list": {
+                    "description": "Print all sweep data files contained in firmware",
+                    "usage": "list",
+                    "arguments": [],
+                    "examples": ["list"]
+                }, 
+                "retrieve": {
+                    "description": "Retrieve a sweep file from firmware and save locally. ",
+                    "usage": "retrieve <sweep_name>",
+                    "arguments": ["<sweep_name>    Name of the sweep data as it will be searched for in the firmware"],
+                    "examples": ["retrieve my_cool_sweep"]
+                }, 
+                "delete": {
+                    "description": "Delete a sweep file from firmware",
+                    "usage": "delete <sweep_name>",
+                    "arguments": ["<sweep_name>    Name of sweep data file to be deleted"],
+                    "examples": ["delete my_cool_sweep" ] 
+                }, 
+                "connect": {
+                    "description": "Attempt connection to firmware",
+                    "usage": "connect",
+                    "arguments": [],
+                    "examples": ["connect"]
+                }, 
+                "disconnect": {
+                    "description": "Disconnect from firmware",
+                    "usage": "disconnect",
+                    "arguments": [],
+                    "examples": ["disconnect"]
+                }, 
+                "boot": {
+                    "description": "Initialize RFCA hardware peripherals",
+                    "usage": "boot",
+                    "arguments": [],
+                    "examples": ["boot"]
+                }, 
+                "shutdown": {
+                    "description": "Shutdown RFCA hardware peripherals",
+                    "usage": "shutdown",
+                    "arguments": [],
+                    "examples": ["shutdown"]
+                }, 
+                "clear": {
+                    "description": "Clear RFCA console",
+                    "usage": "clear",
+                    "arguments": [],
+                    "examples": ["clear"]
+                }, 
+                "cls": {
+                    "description": "Clear RFCA console",
+                    "usage": "clear",
+                    "arguments": [],
+                    "examples": ["clear"]
+                }, 
+                "help": {
+                    "description": "Display available commands or detailed help for a specific command.",
+                    "usage": "help [command]",
+                    "arguments": ["[command]    Optional. Name of a command to view detailed help. "],
+                    "examples": ["help", 
+                                 "help config",
+                                 "help help"
+                                 ]
+                }, 
+                "freq": {
+                    "description": "Set a specific RFCA output frequency",
+                    "usage": "freq <frequency>",
+                    "arguments": ["<frequency>    Integer value of output frequency in MHz (800-6800)"],
+                    "examples": ["freq 3000", # 3000 MHz
+                                 "freq 5400"] # 5400 MHz  
+                }, 
+                "port": {
+                    "description": "Open a specific SP8T output port",
+                    "usage": "port <output_port>",
+                    "arguments": ["<output_port>    Port number to open (1-8)"],
+                    "examples": ["port 1",
+                                 "port 8"]
+                }
+            }
 
 
 ##############################
@@ -270,7 +370,6 @@ def print_rfca_header():
     print("Type 'q' to quit\n")
 
 
-
 '''
  * @brief Parses cmd and data from raw user CLI input
  * @param user_input: String w/ user input
@@ -286,100 +385,51 @@ def parse_user_input(user_input):
     # Check cmd validity
     cmd = parts[0]
     if cmd not in command_set:
-        err(f"Command \'{cmd}\' not recognized")
+        err(f"Command \'{cmd}\' not recognized. Enter 'help' for a list of available commands. ")
         return None, None
-
 
     if cmd == "clear" or cmd == "cls":
         clear_terminal()
         print_rfca_header()
         return None, None
 
+    # Enumerate command list and descriptions
+    if cmd == "help":
+        help_handler(parts)
+        return None, None
+
     # If a command is issued while the firmware is disconnected, throw an error
+    global connected
     if cmd != "connect":
         if not connected:
             err("Not connected to firmware")
             return None, None
 
+
     # Next, based on the command, process further arguments into 'data' accordingly
-
-    # 'config' needs to open the ./config.json file and store in 'data'
-    # There are no additional arguments required for this command
     if cmd == "config":
-        try: 
-            with open('./config.json', "r", encoding="utf-8") as f:
-                data = json.load(f)
-        except Exception as e:
-            err(f"Failed to read/parse JSON file: {e}")
-            return None, None 
+        command, data = config_handler(parts)
         
-    # 'calibrate' needs to store port info in 'data'
     elif cmd == "calibrate": 
+        command, data = calibrate_handler(parts)
 
-        # 'calibrate' cmd requires two additional arguments minimum: calibrate out in
-        if len(parts) < 3:
-            err("The 'calibrate' command requires two positional arguments: (int)out and (int)in")
-            return None, None
-
-        out_port = parts[1] # Must be between 1 and 8 inclusive
-        in_port = parts[2]  # Must be between 1 and 10 inclusive
-        set_cal = '-1'        # -1 by default indicates running typical calibration
-
-        # Argument validation
-        if((int)(out_port) < 1 or (int)(out_port) > 8):
-            err(f"Argument (out_port) out of range: {out_port} is not within [1, 8]")
-            return None, None
-        elif((int)(in_port) < 1 or (int)(in_port) > 10):
-            err(f"Argument (in_port) of range: {in_port} is not within [1, 10]")
-            return None, None 
-
-        # If a set_cal parameter is passed, set the cal value to that argument
-        # CLI Args: calibrate out in set
-        if len(parts) == 4:
-            set_cal = parts[3] 
-
-        data = [out_port, in_port, set_cal]
-
-    # 'sweep', 'retrieve', 'delete' each stores sweep name information into 'data'
     elif cmd == "sweep":
-
-        # 'sweep' cmd requires one additional argument: sweep sweep_name
-        if len(parts) < 2:
-            err("The 'sweep' command requires an argument: (string)sweep_name")
-            return None, None
-        
-        data = parts[1]
+        command, data = sweep_handler(parts)
         
     elif cmd == "retrieve":
-
-        # 'retrieve' cmd requires one additional argument: retrieve sweep_name
-        if len(parts) < 2:
-            err("The 'retrieve' command requires an argument: (string)sweep_name")
-            return None, None
+        command, data = retrieve_handler(parts)
         
-        data = parts[1]
-
     elif cmd == "delete":
-
-        # 'delete' cmd requires one additional argument: delete sweep_name
-        if len(parts) < 2:
-            err("The 'delete' command requires an argument: (string)sweep_name")
-            return None, None
+        command, data = delete_handler(parts)
         
-        data = parts[1]
-
-    # 'list' has no data
     elif cmd == "list":
-        data = None
+        return cmd, None
 
     # Manual connect/disconnect commands
     elif cmd == "connect":
-        global ser
-        ser = connectFW()
-        return None, None
+        command, data = connect_handler()
     elif cmd == "disconnect":
-        disconnectFW()
-        return None, None
+        command, data = disconnect_handler()
     
     # Power up/down the FW.  No data to send
     elif cmd == "boot":
@@ -389,39 +439,230 @@ def parse_user_input(user_input):
 
     # These are dev/debugging commands
     elif cmd == "freq": # {cmd: 'freq', data: 3500} # Set ADF output to 3500 MHz
-
-        # 'freq' cmd requires one additional argument: freq frequency
-        if len(parts) < 2:
-            err("The 'freq' command requires an argument: (int)frequency (MHz)")
-            return None, None
-        
-        data = parts[1]
-
-        # Argument validation
-        if((int)(data) < 800 or (int)(data) > 6800):
-            err(f"Argument (frequency) out of range: {data} MHz is not within [800, 6800] Mhz")
-            return None, None
+        command, data = freq_handler(parts)
         
     elif cmd == "port":
-
-        # 'port' cmd requires one additional argument: port out_port
-        if len(parts) < 2:
-            err("The 'port' command requires an argument: (int)port [1, 8]")
-            return None, None
-        
-        data = parts[1] # {cmd: 'port', data: 1} # Open a specific output port
-
-        # Argument validation
-        if((int)(data) < 1 or (int)(data) > 8):
-            err(f"Argument (port) out of range: {data} is not within [1, 8]")
-            return None, None
+        command, data = port_handler(parts)
 
     else:
         # This shouldn't happen because we check cmd validity at the beginning of this function
         return None, None
 
     # After processing, return both the command and its data
-    return cmd, data
+    return command, data
+
+
+''' 
+ * @brief Handle 'help' CLI commands
+ * @param parts: Array of CLI inputs (commands and arguments)
+ * @return None
+ '''
+def help_handler(parts):
+
+    # List description of all commands
+    if len(parts) == 1:
+        print("=================")
+        print("These are the commands needed to conduct a full frequency sweep\n")
+        for cmd in ["config", "calibrate", "sweep"]:
+            description = command_set[cmd]["description"]
+            print(f" {cmd:<15} {description}")
+        
+        print("\n=================")
+        print("These are the data management commands\n")
+        for cmd in ["list", "retrieve", "delete"]:
+            description = command_set[cmd]["description"]
+            print(f" {cmd:<15} {description}")
+
+        print("\n=================")
+        print("These are more precise hardware control commands (additional, not necessary for operation)\n")
+        for cmd in ["connect", "disconnect", "boot", "shutdown", "freq", "port"]:
+            description = command_set[cmd]["description"]
+            print(f" {cmd:<15} {description}")
+
+        print("\n=================")
+        print("These are CLI aiding commands\n")
+        for cmd in ["clear", "cls", "help"]:
+            description = command_set[cmd]["description"]
+            print(f" {cmd:<15} {description}")
+
+        print("\n")
+        return
+    # List description of a single command
+    else:
+        cmd = parts[1]
+
+        if cmd not in command_set:
+            err(f"Command \'{cmd}\' not recognized, can't retrieve help information")
+            return
+
+        description = command_set[cmd]["description"]   # String
+        usage = command_set[cmd]["usage"]               # String
+        arguments = command_set[cmd]["arguments"]       # [String]
+        examples = command_set[cmd]["examples"]           # [String]
+
+        print(f"=================\n {cmd}")
+        print(f"\n Description:\n  {description}")
+        print(f"\n Usage:\n  {usage}")
+
+        print("\n Argument(s):")
+        if len(arguments) == 0:
+            print("  None")
+        else:
+            for arg in arguments:
+                print(f"  {arg}")
+
+        print("\n Example(s):")
+        for example in examples:
+            print(f"  {example}")
+
+    print("\n")
+    return
+
+''' 
+ * @brief Handle 'config' CLI commands
+ * @param parts: Array of CLI inputs (commands and arguments)
+ * @return command, data
+ '''
+def config_handler(parts):
+
+    # 'config' needs to open the ./config.json file and store in 'data'
+    # There are no additional arguments required for this command
+    
+    try: 
+        with open('./config.json', "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception as e:
+        err(f"Failed to read/parse JSON file: {e}")
+        return None, None 
+    
+    # cmd, data
+    return parts[0], data
+
+'''
+ * @brief Handle 'calibrate' CLI commands
+ * @param parts: Array of CLI inputs (commands and arguments)
+ * @return command, data
+ '''
+def calibrate_handler(parts):
+        
+    # 'calibrate' cmd requires two additional arguments minimum: calibrate out in
+    if len(parts) < 3:
+        err("The 'calibrate' command requires two positional arguments: (int)out and (int)in")
+        return None, None
+
+    out_port = parts[1] # Must be between 1 and 8 inclusive
+    in_port = parts[2]  # Must be between 1 and 10 inclusive
+    set_cal = '-1'        # -1 by default indicates running typical calibration
+
+    # Argument validation
+    if((int)(out_port) < 1 or (int)(out_port) > 8):
+        err(f"Argument (out_port) out of range: {out_port} is not within [1, 8]")
+        return None, None
+    elif((int)(in_port) < 1 or (int)(in_port) > 10):
+        err(f"Argument (in_port) of range: {in_port} is not within [1, 10]")
+        return None, None 
+
+    # If a set_cal parameter is passed, set the cal value to that argument
+    # CLI Args: calibrate out in set
+    if len(parts) == 4:
+        set_cal = parts[3] 
+
+    # 'calibrate' needs to store port info in 'data'
+    data = [out_port, in_port, set_cal]
+    return parts[0], data
+
+'''
+ * @brief Handle 'sweep' CLI commands
+ * @param parts: Array of CLI inputs (commands and arguments)
+ * @return command, data
+ '''
+def sweep_handler(parts):
+    # 'sweep' cmd requires one additional argument: sweep sweep_name
+    if len(parts) < 2:
+        err("The 'sweep' command requires an argument: (string)sweep_name")
+        return None, None
+    
+    return parts[0], parts[1]
+
+'''
+ * @brief Handle 'retrieve' CLI commands
+ * @param parts: Array of CLI inputs (commands and arguments)
+ * @return command, data
+ '''
+def retrieve_handler(parts):
+    # 'retrieve' cmd requires one additional argument: retrieve sweep_name
+    if len(parts) < 2:
+        err("The 'retrieve' command requires an argument: (string)sweep_name")
+        return None, None
+    
+    return parts[0], parts[1]
+
+'''
+ * @brief Handle 'delete' CLI commands
+ * @param parts: Array of CLI inputs (commands and arguments)
+ * @return command, data
+ '''
+def delete_handler(parts):
+    # 'delete' cmd requires one additional argument: delete sweep_name
+    if len(parts) < 2:
+        err("The 'delete' command requires an argument: (string)sweep_name")
+        return None, None
+    
+    return parts[0], parts[1]
+
+'''
+ * @brief Handle 'connect' CLI commands
+ * @return no data
+ '''
+def connect_handler():
+    global ser
+    ser = connectFW()
+    return None, None # No cmd or data to send to fw
+
+'''
+ * @brief Handle 'disconnect' CLI commands
+ * @return no data
+ '''
+def disconnect_handler():
+    disconnectFW()
+    return None, None # No cmd or data to send to fw
+
+'''
+ * @brief Handle 'freq' CLI commands
+ * @param parts: Array of CLI inputs (commands and arguments)
+ * @return command, data
+ '''
+def freq_handler(parts):
+    # 'freq' cmd requires one additional argument: freq frequency
+    if len(parts) < 2:
+        err("The 'freq' command requires an argument: (int)frequency (MHz)")
+        return None, None
+
+    # Argument validation
+    if((int)(parts[1]) < 800 or (int)(parts[1]) > 6800):
+        err(f"Argument (frequency) out of range: {parts[1]} MHz is not within [800, 6800] Mhz")
+        return None, None
+    
+    return parts[0], parts[1]
+
+'''
+ * @brief Handle 'port' CLI commands
+ * @param parts: Array of CLI inputs (commands and arguments)
+ * @return command, data
+ '''
+def port_handler(parts):
+    # 'port' cmd requires one additional argument: port out_port
+    if len(parts) < 2:
+        err("The 'port' command requires an argument: (int)port [1, 8]")
+        return None, None
+
+    # Argument validation
+    if((int)(parts[1]) < 1 or (int)(parts[1]) > 8):
+        err(f"Argument (port) out of range: {parts[1]} is not within [1, 8]")
+        return None, None
+    
+    return parts[0], parts[1]
+
 
 '''
  * @brief Send command and relevant data to firmware (after processing user input)
@@ -634,8 +875,8 @@ def main():
 
             # Quit condition
             if user_input.lower() in ["q", "quit", "exit"]:
-                info("Exiting RFCA CLI...")
                 disconnectFW()
+                info("Exiting RFCA CLI...")
                 break
 
             # Ignore empty input

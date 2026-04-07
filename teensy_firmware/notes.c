@@ -161,6 +161,7 @@
 //
 // Done 4/7:
 // - Added function to adf5356 driver to disable RF output A
+// - Added 'help' command to CLI for detailed info about command list
 //
 // To Test:
 // - Disabling RFOUTA works as expected
