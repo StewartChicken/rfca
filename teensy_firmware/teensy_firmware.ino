@@ -15,9 +15,14 @@
 #include "./drivers/Src/adf5356.c"
 
 // Application function declarations
-static Config_t update_config_struct(const JsonDocument& config);
+static void bootRFCA(void);
+static void shutdownRFCA(void);
+static void CLI_sendAcknowledge(const char* cmd);
+static void CLI_sendComplete(const char* cmd);
 static status_t processCommand(const char* cmd, JsonVariant data);
-static status_t conduct_sweep(const char* sweep_name); 
+static status_t conduct_sweep(const char* sweep_name);
+static Config_t update_config_struct(const JsonDocument& config);
+float get_cal_delta(uint8_t out, uint8_t in, uint32_t frequency);
 
 // Debug function(s)
 static void print_json(const JsonDocument& doc) __attribute__((unused));
@@ -40,6 +45,11 @@ static status_t global_status = STATUS_OK;
 
 static bool device_booted = false; //  Keeps track of device boot state
 
+/**
+ * @brief Main application initialization
+ * @return: void
+ * TODO: Error handling
+ */
 void setup() {
 
   // From sd_card.h
@@ -69,6 +79,11 @@ void setup() {
   while (!Serial) {}
 }
 
+/**
+ * @brief Main application loop
+ * @return: void
+ * TODO: Error handling
+ */
 void loop() {
   if(Serial.available()) {
     // Read character off the top of the buffer
@@ -89,9 +104,9 @@ void loop() {
       JsonVariant data = doc["data"];
 
       // Processes and executes command, issues response to CLI
-      acknowledge_CLI(cmd);
+      CLI_sendAcknowledge(cmd);
       global_status = processCommand(cmd, data);
-      complete_data(cmd);
+      CLI_sendComplete(cmd);
 
       idx = 0;
     } 
@@ -215,7 +230,12 @@ static void shutdownRFCA() {
 #endif
 }
 
-static void acknowledge_CLI(const char* cmd) {
+/**
+ * @brief Sends a response to the CLI acknowledging a command has been received
+ * @return: void
+ * TODO: Error handling
+ */
+static void CLI_sendAcknowledge(const char* cmd) {
   JsonDocument ack;
   ack["type"] = "ack";
   ack["cmd"] = cmd;
@@ -226,8 +246,12 @@ static void acknowledge_CLI(const char* cmd) {
   Serial.println();
 }
 
-// TODO: Rename 
-static void complete_data(const char* cmd) {
+/**
+ * @brief Sends a response to the CLI acknowledging a command has finished processing
+ * @return: void
+ * TODO: Error handling
+ */
+static void CLI_sendComplete(const char* cmd) {
   JsonDocument complete;
   complete["type"] = "complete";
   complete["cmd"] = cmd;

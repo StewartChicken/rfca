@@ -1,6 +1,5 @@
 
 # TODO: ERROR HANDLING
-# TODO: Figure out exactly what frequency range we're working with (upper/lower limit)
 # TODO: Organize and comment functions in files
 # TODO: Write documentation
 

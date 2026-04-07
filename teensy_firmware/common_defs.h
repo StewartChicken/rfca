@@ -3,26 +3,6 @@
 #define _COMMON_DEFS_H
 
 
-
-// ============================================================
-// Global Parameters/Data structures
-// ============================================================
-
-// DEBUG config (dev) flags
-#define ENABLE_DEBUG_PRINTS 0 // This needs to be 0 when using the CLI to communicate with the Teensy
-#define ENABLE_CALIBRATION  0 // Determines if calibration data is accounted for when recording loss measurements
-
-// Sweep parameters
-typedef struct {
-    sp8t_port_t sp8t_out_ports[8];  // 1-8, inclusive
-    uint32_t start_freq;            // MHz
-    uint32_t stop_freq;             //  MHz
-    uint32_t step_size;             // MHz
-    uint32_t delay_ms;              // ms
-} Config_t;
-
-
-
 // ============================================================
 // Logorithmic Amplifiers
 // ============================================================
@@ -165,6 +145,24 @@ const char* status_to_str(status_t s)
     }
 }
 
+
+
+// ============================================================
+// Global Parameters/Data structures
+// ============================================================
+
+// DEBUG config (dev) flags
+#define ENABLE_DEBUG_PRINTS 0 // This needs to be 0 when using the CLI to communicate with the Teensy
+#define ENABLE_CALIBRATION  0 // Determines if calibration data is accounted for when recording loss measurements
+
+// Sweep parameters
+typedef struct {
+    sp8t_port_t sp8t_out_ports[8];  // 1-8, inclusive
+    uint32_t start_freq;            // MHz
+    uint32_t stop_freq;             //  MHz
+    uint32_t step_size;             // MHz
+    uint32_t delay_ms;              // ms
+} Config_t;
 
 
 #endif // _COMMON_DEFS_H
