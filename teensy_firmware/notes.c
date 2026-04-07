@@ -158,3 +158,9 @@
 // - Sweep data saved to a dedicated directory rather than root
 // - COM port selection is dynamic 
 // - Basic argument validation
+//
+// Done 4/7:
+// - Added function to adf5356 driver to disable RF output A
+//
+// To Test:
+// - Disabling RFOUTA works as expected

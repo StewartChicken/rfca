@@ -1,14 +1,16 @@
 
 # TODO: Create consistent dependency environment (multiple libraries for 'serial')
-# TODO: Add Pwr up cmd
-# TODO: Add Pwr down cmd
-# TODO: Functionality to close output of ADF
+# TODO: ERROR HANDLING
 # TODO: Add status cmd (Connection information?)
 # TODO: Retrieve cmd shouldn't create .csv data if file dne in fw
 # TODO: Add 'help' command
 # TODO: Progress reports from FW increase timeout so program doesn't terminate prematurely
 # TODO: CMD Buffer (timeouts cause data desync)
 # TODO: Subtle spell-casting (file_name and file_name.csv should be treated the same?)
+# TODO: Figure out exactly what frequency range we're working with (upper/lower limit)
+# TODO: Organize and comment functions in files
+# TODO: Organize common_defs.h
+# TODO: Write documentation
 
 
 # For FW interaction
@@ -597,9 +599,9 @@ def processData(cmd, data):
         info(f"Deleted {sweep_name} from the firmware")
 
     elif(cmd == "boot"):
-        print(data)
+        info(f"Device booted")
     elif(cmd == "shutdown"):
-        print(data)
+        info(f"Device shutdown")
 
     # Dev command
     elif(cmd == "freq"):

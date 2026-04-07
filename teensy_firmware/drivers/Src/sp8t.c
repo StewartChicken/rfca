@@ -38,3 +38,16 @@ void sp8t_enablePort(const sp8t_port_t port) {
     digitalWrite(SP8T_PIN_V2, v2_val);
     digitalWrite(SP8T_PIN_V3, v3_val);
 }
+
+/**
+ * @brief Set mux_in lines to digital 0
+ * @return: void
+ * TODO: Error handling
+ */
+void sp8t_reset() {
+    digitalWrite(SP8T_PIN_ENABLE, LOW);
+    digitalWrite(SP8T_PIN_LS, LOW);
+    digitalWrite(SP8T_PIN_V1, LOW);
+    digitalWrite(SP8T_PIN_V2, LOW);
+    digitalWrite(SP8T_PIN_V3, LOW);
+}

@@ -38,6 +38,7 @@ static size_t idx = 0;
 // Application level error handling. This is the status which is communicated to the Python Host
 static status_t global_status = STATUS_OK;
 
+static bool device_booted = false; //  Keeps track of device boot state
 
 void setup() {
 
@@ -57,25 +58,11 @@ void setup() {
   // Retrieve any saved calibration data from the SD card
   global_status = SD_get_cal(global_cal_doc);
 
-  // Power control.  These pins need to be written high before the switch logic or synth control
-  pinMode(ADM_POS_3v3, OUTPUT);
-  pinMode(ADM_NEG_3v3, OUTPUT);
-  digitalWrite(ADM_POS_3v3, HIGH); 
-  delay(1000); // For safety
-  digitalWrite(ADM_NEG_3v3, HIGH);
-  delay(1000); // For safety 
-
   // For LogAmps
   analogReadResolution(ADC_RESOLUTION);  
-
-  // GPIO config for sp8t mux
-  sp8t_init();
-  delay(1000); // For safety
-
-  // Communication with ADF5356
-  ADF_spi_init();
-  delay(1000); // For safety
   
+  // Boot up sequence for hardware peripherals
+  bootRFCA();
   
   // TODO: If an error is present, send immediately to CLI once connected
   Serial.begin(115200);   
@@ -117,6 +104,115 @@ void loop() {
     }
 
   }
+}
+
+/**
+ * @brief Powers up the RFCA following the proper boot sequence
+ * @return: void
+ * TODO: Error handling
+ */
+static void bootRFCA() {
+
+  // If the device is already booted, do not repeat the boot sequence
+  if (device_booted) {
+#if ENABLE_DEBUG_PRINTS
+    Serial.println("Device already booted!");
+#endif
+    return;
+  }
+  
+  // Boot sequence:
+  // 1:  +3.3v line
+  // 2:  -3.3v line
+  // 3:  SP8T CTRL
+  // 4:  ADF5356
+
+#if ENABLE_DEBUG_PRINTS
+  Serial.println("Enabling +3.3v line...");
+#endif  
+  pinMode(ADM_POS_3v3, OUTPUT);
+  digitalWrite(ADM_POS_3v3, HIGH); 
+  delay(1000); // For safety
+
+#if ENABLE_DEBUG_PRINTS
+  Serial.println("Enabling -3.3v line...");
+#endif  
+  pinMode(ADM_NEG_3v3, OUTPUT);
+  digitalWrite(ADM_NEG_3v3, HIGH);
+  delay(1000); // For safety 
+
+#if ENABLE_DEBUG_PRINTS
+  Serial.println("Initializing SP8T...");
+#endif 
+  sp8t_init(); // GPIO config for sp8t mux
+  delay(1000); // For safety
+
+#if ENABLE_DEBUG_PRINTS
+  Serial.println("Initializing ADF5356...");
+#endif  
+  ADF_spi_init(); // Communication with ADF5356
+  delay(1000); // For safety
+
+  // Global state variable
+  device_booted = true;
+
+#if ENABLE_DEBUG_PRINTS
+  Serial.println("Bootup Complete");
+#endif
+}
+
+/**
+ * @brief Powers down the RFCA following the proper shutdown sequence
+ * @return: void
+ * TODO: Error handling
+ */
+static void shutdownRFCA() {
+
+  // If the device is already shutdown, do not repeat the boot sequence
+  if (!device_booted) {
+#if ENABLE_DEBUG_PRINTS
+    Serial.println("Device already shutdown!");
+#endif
+    return;
+  }
+  // Shutdown sequence:
+  // 1:  ADF5356
+  // 2:  SP8T CTRL
+  // 3:  -3.3v line
+  // 4:  +3.3v line
+
+#if ENABLE_DEBUG_PRINTS
+  Serial.println("Closing ADF5356 output...");
+#endif  
+  ADF_disable_rf();
+  delay(1000); // For safety
+
+#if ENABLE_DEBUG_PRINTS
+  Serial.println("Disabling SP8T ctrl logic...");
+#endif  
+  sp8t_reset(); // Disable ctrl logic
+  delay(1000); // For safety
+  
+#if ENABLE_DEBUG_PRINTS
+  Serial.println("Disabling -3.3v line...");
+#endif 
+  pinMode(ADM_NEG_3v3, OUTPUT);
+  digitalWrite(ADM_NEG_3v3, LOW);
+  delay(1000); // For safety 
+
+#if ENABLE_DEBUG_PRINTS
+  Serial.println("Disabling +3.3v line...");
+#endif 
+  pinMode(ADM_POS_3v3, OUTPUT);
+  digitalWrite(ADM_POS_3v3, LOW); 
+  delay(1000);
+
+  // Global state variable
+  device_booted = false;
+
+#if ENABLE_DEBUG_PRINTS
+  Serial.println("Shutdown Complete");
+#endif
 }
 
 static void acknowledge_CLI(const char* cmd) {
@@ -318,12 +414,12 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
         response["data"]["sweep_name"] = sweep_name;
     }
     else if(strcmp(cmd, "boot") == 0) {
+      bootRFCA();
       response["status"] = "OK";
-      response["data"]["TEMP"] = "BOOTUP";
     }
     else if(strcmp(cmd, "shutdown") == 0) {
+      shutdownRFCA();
       response["status"] = "OK";
-      response["data"]["TEMP"] = "SHUTDOWN"; 
     }
 
     // Dev command, write specified frequency and read power on LA0
@@ -368,19 +464,6 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
       Serial.print("Average power: ");
       Serial.println(total_power);
 #endif
-
-#if ENABLE_DEBUG_PRINTS
-      Serial.print("Raw reading: ");
-      Serial.println(raw);
-      Serial.print("Voltage: ");
-      Serial.println(voltage);
-      Serial.print("Slope: ");
-      Serial.println(slope);
-      Serial.println("Intercept: ");
-      Serial.println(intercept);
-      Serial.print("Power reading: ");
-      Serial.println(power);
-#endif 
 
       response["status"] = "OK";
       response["data"]["freq"] = freq;

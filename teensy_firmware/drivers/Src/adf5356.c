@@ -21,6 +21,20 @@ void ADF_spi_init() {
 }
 
 /**
+ * @brief Disable ADF5356 Output A by writing to register 6
+ * @return void
+ */
+void ADF_disable_rf() {
+  uint8_t reg6[4] = {0x35, 0x01, 0x84, 0x26};
+  ADF_spi_write(reg6, 4);
+
+#if ENABLE_DEBUG_PRINTS
+  Serial.println("Wrote: 0x35 01 84 26 to Register 6");
+#endif 
+}
+
+
+/**
  * @brief Write the given frequency to the ADF5356
  * @param frequency - Desired output frequency: [850, 6800] (inclusive, in MHz)
  * @return: void
@@ -28,7 +42,7 @@ void ADF_spi_init() {
  */
 void ADF_write_freq(uint32_t frequency) {
   
-  if(frequency < 850) {
+  if(frequency < 800) {
     // TODO: Throw error
   }
   else if(frequency > 6800) {
@@ -37,42 +51,7 @@ void ADF_write_freq(uint32_t frequency) {
 
   uint8_t reg_config[14][4] = {0}; // Overwritten below
   ADF_config_regs(reg_config, frequency);
-
   ADF_write_regs(reg_config, REG_WRITE_DELAY);
-}
-
-/**
- * @brief Write and read data to/from SPI.
- * @param data - The buffer with the transmitted/received data.
- * @param bytes_number - Number of bytes to write/read.
- * @return void
- * TODO: Error handling
- */
-static void ADF_spi_write(uint8_t *data, uint16_t num_bytes) {
-
-  // Steps:
-  // 1. Begin SPI transaction
-  // 2. Assert CS LOW
-  // 3. Transfer Data
-  // 4. Assert CS HIGH
-  // 5. End SPI Transaction
-
-  // TODO: Globally define?
-  SPISettings spiSettings(
-    1000000,      // 1 MHz SPI clockss
-    MSBFIRST,     // Bit order
-    SPI_MODE0     // CPOL=0, CPHA=0
-  );
-
-  digitalWrite(ADF_LE, LOW); // Pull LE low
-  delayMicroseconds(1); 
-
-  SPI.beginTransaction(spiSettings);
-  SPI.transfer(data, num_bytes);   // in-place buffer
-  SPI.endTransaction();
-
-  delayMicroseconds(1);
-  digitalWrite(ADF_LE, HIGH); // Latch data from ADF5356 Shift Register to Data Registers
 }
 
 /**
@@ -213,6 +192,41 @@ static void ADF_write_regs(const uint8_t reg[14][4], const uint32_t delay_ms) {
 #if ENABLE_DEBUG_PRINTS
   Serial.println("Done");
 #endif
+}
+
+
+/**
+ * @brief Write and read data to/from SPI.
+ * @param data - The buffer with the transmitted/received data.
+ * @param bytes_number - Number of bytes to write/read.
+ * @return void
+ * TODO: Error handling
+ */
+static void ADF_spi_write(uint8_t *data, uint16_t num_bytes) {
+
+  // Steps:
+  // 1. Begin SPI transaction
+  // 2. Assert CS LOW
+  // 3. Transfer Data
+  // 4. Assert CS HIGH
+  // 5. End SPI Transaction
+
+  // TODO: Globally define?
+  SPISettings spiSettings(
+    1000000,      // 1 MHz SPI clockss
+    MSBFIRST,     // Bit order
+    SPI_MODE0     // CPOL=0, CPHA=0
+  );
+
+  digitalWrite(ADF_LE, LOW); // Pull LE low
+  delayMicroseconds(1); 
+
+  SPI.beginTransaction(spiSettings);
+  SPI.transfer(data, num_bytes);   // in-place buffer
+  SPI.endTransaction();
+
+  delayMicroseconds(1);
+  digitalWrite(ADF_LE, HIGH); // Latch data from ADF5356 Shift Register to Data Registers
 }
 
 /**
