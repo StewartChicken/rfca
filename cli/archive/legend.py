@@ -1,5 +1,4 @@
 
-# TODO: Create consistent dependency environment (multiple libraries for 'serial')
 
 # For FW interaction
 import os

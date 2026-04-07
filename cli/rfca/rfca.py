@@ -1,6 +1,5 @@
 
 # TODO: ERROR HANDLING
-# TODO: Organize and comment functions in files
 # TODO: Write documentation
 
 
