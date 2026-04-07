@@ -319,6 +319,8 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
 
             // Send progress report
             progress["data"]["frequency"] = curr_freq;
+            progress["data"]["out"] = out_port;
+            progress["data"]["in"] = in_port;
             serializeJson(progress, Serial);
             Serial.println();
 
@@ -330,8 +332,7 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
             // Convert raw ADC value to voltage
             float voltage = (raw * ADC_REF_VOLTAGE) / ADC_MAX_VALUE;
             frequencies.add(voltage); // Thru loss
-            //frequencies.add(curr_freq); // Dev test
-
+            
             curr_freq += step;
           }
 
@@ -588,6 +589,7 @@ static status_t conduct_sweep(const char* sweep_name) {
 
       // Send progress report
       progress["data"]["frequency"] = curr_freq;
+      progress["data"]["port"] = (ports[port]);
       serializeJson(progress, Serial);
       Serial.println();
 

@@ -162,6 +162,8 @@
 // Done 4/7:
 // - Added function to adf5356 driver to disable RF output A
 // - Added 'help' command to CLI for detailed info about command list
+// - CLI timeout increases if firmware is sending progress reports
+// - Remove .csv suffix from user inputs
 //
 // To Test:
 // - Disabling RFOUTA works as expected

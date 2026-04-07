@@ -1,11 +1,5 @@
 
-# TODO: Create consistent dependency environment (multiple libraries for 'serial')
 # TODO: ERROR HANDLING
-# TODO: Add status cmd (Connection information?)
-# TODO: Retrieve cmd shouldn't create .csv data if file dne in fw
-# TODO: Add 'help' command
-# TODO: Progress reports from FW increase timeout so program doesn't terminate prematurely
-# TODO: CMD Buffer (timeouts cause data desync)
 # TODO: Subtle spell-casting (file_name and file_name.csv should be treated the same?)
 # TODO: Figure out exactly what frequency range we're working with (upper/lower limit)
 # TODO: Organize and comment functions in files
@@ -581,8 +575,8 @@ def sweep_handler(parts):
     if len(parts) < 2:
         err("The 'sweep' command requires an argument: (string)sweep_name")
         return None, None
-    
-    return parts[0], parts[1]
+
+    return parts[0], parts[1].removesuffix(".csv")
 
 '''
  * @brief Handle 'retrieve' CLI commands
@@ -595,7 +589,7 @@ def retrieve_handler(parts):
         err("The 'retrieve' command requires an argument: (string)sweep_name")
         return None, None
     
-    return parts[0], parts[1]
+    return parts[0], parts[1].removesuffix(".csv")
 
 '''
  * @brief Handle 'delete' CLI commands
@@ -608,7 +602,7 @@ def delete_handler(parts):
         err("The 'delete' command requires an argument: (string)sweep_name")
         return None, None
     
-    return parts[0], parts[1]
+    return parts[0], parts[1].removesuffix(".csv")
 
 '''
  * @brief Handle 'connect' CLI commands
@@ -729,12 +723,21 @@ def wait_for_response(ser, timeout=15):
                     
                     # 'progress' is sent by FW to inform CLI of its current step in processing
                     elif msg.get("type") == "progress":
-                        if(msg.get("cmd") == "sweep"):
-                            info(f'Measuring frequency: {msg.get("data").get("frequency")} MHz')
-                        elif(msg.get("cmd") == "calibrate"):
-                            info(f'Calibrating for frequency: {msg.get("data").get("frequency")} MHz')
 
-                    # Otherwise, process response
+                        if(msg.get("cmd") == "sweep"):
+                            frequency = msg.get("data").get("frequency")
+                            out_port = msg.get("data").get("port")
+                            info(f'From port {out_port}: Measuring frequency: {frequency} MHz')
+                        elif(msg.get("cmd") == "calibrate"):
+                            out_port = msg.get("data").get("out")
+                            in_port = msg.get("data").get("in")
+                            frequency = msg.get("data").get("frequency")
+                            info(f'Out: {out_port} In: {in_port}: Calibrating for frequency: {frequency} MHz')
+
+                        # Prolong timeout if firmware is sending progress updates
+                        start_time = time.time()
+
+                    # Otherwise, process response data
                     elif msg.get("type") == "data":
                         processResponse(msg)
 
@@ -767,11 +770,10 @@ def processResponse(response_data):
         return
     
     # If no errors, process the response data based on CMD type
-    if (response_data.get("type") == "data"):
-        cmd = response_data.get("cmd")
-        data = response_data.get("data")
-        processData(cmd, data)
-        return
+    cmd = response_data.get("cmd")
+    data = response_data.get("data")
+    processData(cmd, data)
+    return
 
 '''
  * @brief Process response data for all possible commands
@@ -889,7 +891,7 @@ def main():
             # Only send JSON to FW if cmd is present
             if (cmd is not None):
                 sendJson(cmd, data, ser)
-                wait_for_response(ser, timeout=60) # 60 second time out
+                wait_for_response(ser) 
 
         except KeyboardInterrupt:
             info("Interrupted. Type 'q' to quit.")
