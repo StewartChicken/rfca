@@ -31,7 +31,7 @@ ser = None
 connected = False # Connected to FW?
 
 # List of possible commands
-command_set = {"config", "calibrate", "sweep", "list", "retrieve", "delete", "connect", "disconnect", "clear", "cls", "freq", "port"}
+command_set = {"config", "calibrate", "sweep", "list", "retrieve", "delete", "connect", "disconnect", "boot", "shutdown", "clear", "cls", "freq", "port"}
 
 
 ##############################
@@ -379,6 +379,12 @@ def parse_user_input(user_input):
         disconnectFW()
         return None, None
     
+    # Power up/down the FW.  No data to send
+    elif cmd == "boot":
+        return cmd, None
+    elif cmd == "shutdown":
+        return cmd, None
+
     # These are dev/debugging commands
     elif cmd == "freq": # {cmd: 'freq', data: 3500} # Set ADF output to 3500 MHz
 
@@ -589,6 +595,11 @@ def processData(cmd, data):
     elif(cmd == "delete"): 
         sweep_name = data.get("sweep_name")
         info(f"Deleted {sweep_name} from the firmware")
+
+    elif(cmd == "boot"):
+        print(data)
+    elif(cmd == "shutdown"):
+        print(data)
 
     # Dev command
     elif(cmd == "freq"):

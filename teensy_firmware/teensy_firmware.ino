@@ -317,6 +317,14 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
         response["status"] = status_to_str(cmd_status);
         response["data"]["sweep_name"] = sweep_name;
     }
+    else if(strcmp(cmd, "boot") == 0) {
+      response["status"] = "OK";
+      response["data"]["TEMP"] = "BOOTUP";
+    }
+    else if(strcmp(cmd, "shutdown") == 0) {
+      rresponse["status"] = "OK";
+      response["data"]["TEMP"] = "SHUTDOWN"; 
+    }
 
     // Dev command, write specified frequency and read power on LA0
     else if(strcmp(cmd, "freq") == 0) { // {cmd: "freq", data: 3500} // Set output to 3500 MHz
