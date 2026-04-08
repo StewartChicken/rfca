@@ -389,6 +389,9 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
         
         // Add the .csv file to the SD card (no data yet)
         cmd_status = SD_add_sweep(sweep_name);
+#if ENABLE_DEBUG_PRINTS
+      Serial.println(status_to_str(cmd_status));
+#endif
         // TODO: Handle error
 
         // Uses the file-scoped sweep_config struct to run a sweep and record data
@@ -522,7 +525,7 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
     else if(strcmp(cmd, "error") == 0) { // {cmd: "error", data: 0x10} // Trigger error code 0x10
 #if ENABLE_DEBUG_PRINTS
       Serial.print("Error code to force: ");
-      print_json(data)
+      print_json(data);
       Serial.println(data.as<uint8_t>());
 #endif
       // Retrieve error code as 1-byte hex

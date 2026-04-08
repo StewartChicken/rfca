@@ -173,3 +173,5 @@
 // Areas that need Error Handling Implemented:
 // - processCommand() function in Teensy Firmware
 // - main loop
+//
+// Bug: FW doesn't write .csv header to data files? Can determine fix by processing errors in main loop

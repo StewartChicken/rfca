@@ -50,6 +50,8 @@ status_t adf5356_write_freq(uint32_t frequency) {
   uint8_t reg_config[14][4] = {0}; // Overwritten below
   adf5356_config_regs(reg_config, frequency);
   adf5356_write_regs(reg_config, REG_WRITE_DELAY);
+
+  return STATUS_OK;
 }
 
 /**

@@ -52,8 +52,10 @@ status_t SD_init_default_config() {
     File cfg;
     size_t bytes_written = 0; // For error handling
     
-    if(!SD.remove(CONFIG_PATH))
-      return STATUS_ERR_SD_REMOVE_FAIL;
+    if(SD.exists(CONFIG_PATH)) {
+      if(!SD.remove(CONFIG_PATH))
+        return STATUS_ERR_SD_REMOVE_FAIL;
+    }
 
     cfg = SD.open(CONFIG_PATH, FILE_WRITE);
     if(!cfg)
@@ -93,8 +95,10 @@ status_t SD_init_default_cal_data() {
     File cal;
     size_t bytes_written = 0; // For error handling
     
-    if(!SD.remove(CAL_PATH)) 
-      return STATUS_ERR_SD_REMOVE_FAIL;
+    if(SD.exists(CAL_PATH)) {
+      if(!SD.remove(CAL_PATH)) 
+        return STATUS_ERR_SD_REMOVE_FAIL;
+    }
 
     cal = SD.open(CAL_PATH, FILE_WRITE);
     if(!cal)
@@ -163,8 +167,10 @@ status_t SD_update_config(const JsonObject& cfg) {
   size_t bytes_written;
 
   // First, delete the old config.json file
-  if(!SD.remove(CONFIG_PATH))
-    return STATUS_ERR_SD_REMOVE_FAIL;
+  if(SD.exists(CONFIG_PATH)) {
+    if(!SD.remove(CONFIG_PATH))
+      return STATUS_ERR_SD_REMOVE_FAIL;
+  }
 
   f = SD.open(CONFIG_PATH, FILE_WRITE);
   if(!f)
@@ -190,8 +196,10 @@ status_t SD_update_cal(const JsonObject& cal) {
   size_t bytes_written;
 
   // First, delete the old config.json file
-  if(!SD.remove(CAL_PATH))
-    return STATUS_ERR_SD_REMOVE_FAIL;
+  if(SD.exists(CAL_PATH)) {
+    if(!SD.remove(CAL_PATH))
+      return STATUS_ERR_SD_REMOVE_FAIL;
+  }
 
   f = SD.open(CAL_PATH, FILE_WRITE);
   if(!f)
@@ -222,8 +230,10 @@ status_t SD_add_sweep(const char* sweep_name) {
 
     // Recreate file fresh (avoid appending to an existing sweep)
     // TODO: Handle existing file
-    if(!SD.remove(file_path))
-      return STATUS_ERR_SD_REMOVE_FAIL;
+    if(SD.exists(file_path)) {
+      if(!SD.remove(file_path))
+        return STATUS_ERR_SD_REMOVE_FAIL;
+    }
 
     File f = SD.open(file_path, FILE_WRITE);
     if(!f) 
@@ -297,8 +307,10 @@ status_t SD_delete_sweep(const char* sweep_name)
   f.flush();
   f.close();
 
-  if(!SD.remove(file_path))
-    return STATUS_ERR_SD_REMOVE_FAIL;
+  if(SD.exists(file_path)) {
+    if(!SD.remove(file_path))
+      return STATUS_ERR_SD_REMOVE_FAIL;
+  }
 
   return STATUS_OK;
 }
