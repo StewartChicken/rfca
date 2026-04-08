@@ -124,6 +124,9 @@ typedef enum {
     STATUS_ERR_SD_REMOVE_FAIL       = 0X15,
     STATUS_ERR_SD_PATH_TOO_LONG     = 0x16,
 
+    // ADF5356 Errors: 0x20 - 0x2F
+    STATUS_ERR_ADF_FREQUENCY_BOUND  = 0x20,
+
     STATUS_ERR_UNKNOWN              = 0XFF,
 } status_t;
 
@@ -132,6 +135,7 @@ const char* status_to_str(status_t s)
     switch (s) {
         case STATUS_OK:                     return "OK";
 
+        // SD Card
         case STATUS_ERR_SD_INIT_FAIL:       return "SD Initialization Failed";
         case STATUS_ERR_SD_OPEN_FAIL:       return "SD Data Open Failed";
         case STATUS_ERR_SD_READ_FAIL:       return "SD Data Read Failed";
@@ -139,6 +143,9 @@ const char* status_to_str(status_t s)
         case STATUS_ERR_SD_DIR_CREATE_FAIL: return "SD Directory Creation Failed";
         case STATUS_ERR_SD_REMOVE_FAIL:     return "SD Data Removal Failed";
         case STATUS_ERR_SD_PATH_TOO_LONG:   return "SD File Path Too Long";
+
+        // ADF5356
+        case STATUS_ERR_ADF_FREQUENCY_BOUND:return "ADF Frequency out of bounds, must be within (800, 6800) MHz";
 
         case STATUS_ERR_UNKNOWN:            return "Unknown Error Code";
 

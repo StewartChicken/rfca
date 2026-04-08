@@ -348,7 +348,7 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
             serializeJson(progress, Serial);
             Serial.println();
 
-            adf5356_write_freq(curr_freq);
+            cmd_status = adf5356_write_freq(curr_freq);
             delay(2); // 2ms delay for sanity
 
             int raw = analogRead(log_amp_pins[in_port - 1]); // log_amp_pins indexed (0-9)
@@ -460,7 +460,7 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
       Serial.print("Frequency: ");
       Serial.println(freq);
 #endif
-      adf5356_write_freq(freq);
+      cmd_status = adf5356_write_freq(freq);
       delay(500);
 
       // Slope and Intercept depend on frequency in GHz
@@ -518,6 +518,21 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
 
     } // END OF else if(strcmp(cmd, "port") == 0)
 
+    // Dev command, force an error code
+    else if(strcmp(cmd, "error") == 0) { // {cmd: "error", data: 0x10} // Trigger error code 0x10
+#if ENABLE_DEBUG_PRINTS
+      Serial.print("Error code to force: ");
+      print_json(data)
+      Serial.println(data.as<uint8_t>());
+#endif
+      // Retrieve error code as 1-byte hex
+      const status_t error_code = static_cast<status_t>(data.as<uint8_t>());
+      const char* error_string = status_to_str(error_code);
+
+      response["status"] = "ERROR";
+      response["data"]["error_message"] = error_string;
+    } // END OF else if(strcmp(cmd, "error") == 0)
+
     // Send response
     serializeJson(response, Serial);
     Serial.println();
@@ -538,6 +553,9 @@ static status_t conduct_sweep(const char* sweep_name) {
   uint32_t stop_freq = sweep_config.stop_freq;
   uint32_t step_size = sweep_config.step_size;
   uint32_t delay_ms = sweep_config.delay_ms; // Delay between frequencies
+
+  // Error handling
+  status_t cmd_status = STATUS_OK;
 
   JsonDocument progress;
 
@@ -579,7 +597,9 @@ static status_t conduct_sweep(const char* sweep_name) {
     while(curr_freq <= stop_freq) {
       data[1] = (float)(curr_freq);
 
-      adf5356_write_freq(curr_freq);
+      cmd_status = adf5356_write_freq(curr_freq);
+      if(cmd_status != STATUS_OK)
+        return cmd_status;
       
       for(int i = 0; i < NUM_LOG_AMPS; i++) {
 
@@ -629,7 +649,7 @@ static status_t conduct_sweep(const char* sweep_name) {
     curr_freq = start_freq;
   }
 
-  return STATUS_OK;
+  return cmd_status;
 }
 
 /**

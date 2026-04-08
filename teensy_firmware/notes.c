@@ -172,5 +172,4 @@
 //
 // Areas that need Error Handling Implemented:
 // - processCommand() function in Teensy Firmware
-// - ad5356 driver
-// - 
+// - main loop

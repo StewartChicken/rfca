@@ -13,7 +13,7 @@
 // Public API functions
 void adf5356_spi_init(void);
 void adf5356_disable_rf(void);
-void adf5356_write_freq(uint32_t frequency);
+status_t adf5356_write_freq(uint32_t frequency);
 
 // Internal functions
 static void adf5356_config_regs(uint8_t reg[14][4], const uint32_t frequency);

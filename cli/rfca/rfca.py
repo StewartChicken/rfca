@@ -133,6 +133,14 @@ command_set = {
                     "examples": ["port 1",
                                  "port 8"]
                 },
+                "error": {
+                    "description": "For testing: force the firmware to throw an error",
+                    "usage": "error <error_code>",
+                    "arguments": ["<error_code>    Hex value of error code to throw"],
+                    "examples": ["error 0x00",
+                                 "error 0x10",
+                                 "error 0xFF"]
+                }
 
             }
 
@@ -445,6 +453,9 @@ def parse_user_input(user_input):
     elif cmd == "port":
         command, data = port_handler(parts)
 
+    elif cmd == "error":
+        command, data = error_handler(parts)
+
     else:
         # This shouldn't happen because we check cmd validity at the beginning of this function
         return None, None
@@ -476,7 +487,7 @@ def help_handler(parts):
 
         print("\n=================")
         print("These are more precise hardware control commands (additional, not necessary for operation)\n")
-        for cmd in ["connect", "disconnect", "boot", "shutdown", "freq", "port"]:
+        for cmd in ["connect", "disconnect", "boot", "shutdown", "freq", "port", "error"]:
             description = command_set[cmd]["description"]
             print(f" {cmd:<15} {description}")
 
@@ -666,6 +677,32 @@ def port_handler(parts):
 
 
 '''
+ * @brief Handle 'error' CLI commands
+ * @param parts: Array of CLI inputs (commands and arguments)
+ * @return command, data
+ '''
+def error_handler(parts):
+    # 'error' cmd requires one additional argument: hex error_code (one byte)
+    if len(parts) < 2:
+        err("The 'error' command requires an argument: (0x)error_code")
+        return None, None
+     
+    # Argument validation
+    try:
+        error_code = int(parts[1], 0)  
+    except ValueError:
+        err(f"Invalid error code: {parts[1]}")
+        return None, None
+     
+    
+    if(error_code < 0x00 or error_code > 0xFF):
+        err(f"Argument (error_code) out of range: {parts[1]} is not within [0x00, 0xFF]")
+        return None
+    
+    return parts[0], error_code
+
+
+'''
  * @brief Send command and relevant data to firmware (after processing user input)
  * @param cmd: Issued command
  * @param data: Relevant data
@@ -773,7 +810,7 @@ def wait_for_response(ser, timeout=15):
 def processResponse(response_data):
     # Handle errors returned by the firmware
     if (response_data.get("status") != "OK"):
-        processError() # TODO - this function is a blank placeholder
+        processFirmwareError(response_data.get("data").get("error_message")) 
         return
     
     # If no errors, process the response data based on CMD type
@@ -865,10 +902,13 @@ def processData(cmd, data):
         # This shouldn't happen 
         err(f"Unrecognized CMD: {cmd}")
 
-# TODO
-def processError():
-    print("Error detected")
-
+'''
+ * @brief Inform user of firmware error
+ * @param error_message: Message from firmware
+ * @return None
+ '''
+def processFirmwareError(error_message):
+    err(f"Firmware threw the following error: {error_message}")
 
 def main():
     global ser

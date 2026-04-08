@@ -4,7 +4,6 @@
 /**
  * @brief Initialize SPI for communication with the ADF5356
  * @return void
- * TODO: Error handling
  */
 void adf5356_spi_init() {
 
@@ -17,7 +16,7 @@ void adf5356_spi_init() {
   // GPIO 11 - MOSI
   // GPIO 12 - MISO (not used)
   // GPIO 13 - SCK
-  SPI.begin();
+  SPI.begin(); // Doesn't return anything, no error handling for this function
 }
 
 /**
@@ -37,16 +36,15 @@ void adf5356_disable_rf() {
 /**
  * @brief Write the given frequency to the ADF5356
  * @param frequency - Desired output frequency: [850, 6800] (inclusive, in MHz)
- * @return: void
- * TODO: Error handling
+ * @return: status_t
  */
-void adf5356_write_freq(uint32_t frequency) {
+status_t adf5356_write_freq(uint32_t frequency) {
   
   if(frequency < 800) {
-    // TODO: Throw error
+    return STATUS_ERR_ADF_FREQUENCY_BOUND;
   }
   else if(frequency > 6800) {
-    // TODO: Throw error
+    return STATUS_ERR_ADF_FREQUENCY_BOUND;
   }
 
   uint8_t reg_config[14][4] = {0}; // Overwritten below
@@ -59,11 +57,8 @@ void adf5356_write_freq(uint32_t frequency) {
  * @param reg - Array of 8-byte values containing the caller's register information
  * @param frequency - Desired output frequency: 850MHz - 6800MHz 
  * @return: void
- * TODO: Error handling
  */
 static void adf5356_config_regs(uint8_t reg[14][4], const uint32_t frequency) {
-
-  // TODO: Error checking for frequency range
 
   /* Formula:
   *   N = INT + (FRAC1 + FRAC2/MOD2) / (MOD1)
@@ -200,7 +195,6 @@ static void adf5356_write_regs(const uint8_t reg[14][4], const uint32_t delay_ms
  * @param data - The buffer with the transmitted/received data.
  * @param bytes_number - Number of bytes to write/read.
  * @return void
- * TODO: Error handling
  */
 static void adf5356_spi_write(uint8_t *data, uint16_t num_bytes) {
 
