@@ -47,19 +47,25 @@ bool SD_does_config_exist() {
 /**
  * @brief Create the config file with default values
  * @return: status_t
- * TODO: Set up default values, it creates an empty config for now
  */
 status_t SD_init_default_config() {
     File cfg;
     size_t bytes_written = 0; // For error handling
     
-    SD.remove(CONFIG_PATH);
+    if(!SD.remove(CONFIG_PATH))
+      return STATUS_ERR_SD_REMOVE_FAIL;
+
     cfg = SD.open(CONFIG_PATH, FILE_WRITE);
     if(!cfg)
       return STATUS_ERR_SD_OPEN_FAIL;
 
-    // TODO - Create default config
+    // Default config.json
     bytes_written += cfg.println("{");
+    bytes_written += cfg.println("\"sp8t_out_ports\":[1],");
+    bytes_written += cfg.println("\"start_freq\":1000,");
+    bytes_written += cfg.println("\"stop_freq\":6000,");
+    bytes_written += cfg.println("\"step_size\":500,");
+    bytes_written += cfg.println("\"delay_ms\": 10");  
     bytes_written += cfg.println("}");
     cfg.flush();
     cfg.close();
@@ -87,7 +93,9 @@ status_t SD_init_default_cal_data() {
     File cal;
     size_t bytes_written = 0; // For error handling
     
-    SD.remove(CAL_PATH);
+    if(!SD.remove(CAL_PATH)) 
+      return STATUS_ERR_SD_REMOVE_FAIL;
+
     cal = SD.open(CAL_PATH, FILE_WRITE);
     if(!cal)
       return STATUS_ERR_SD_OPEN_FAIL;
@@ -128,7 +136,6 @@ status_t SD_init_default_cal_data() {
 /**
  * @brief Check if the data directory exists
  * @return: bool
- * TODO: Error handling
  */
 bool SD_does_data_dir_exist() {
   return SD.exists(DATA_PATH);
@@ -137,13 +144,11 @@ bool SD_does_data_dir_exist() {
 /**
  * @brief Create the data directory (empty)
  * @return: status_t
- * TODO: Error handling
  */
 status_t SD_init_data_dir() {
 
-  if(!SD.mkdir(DATA_PATH)) {
+  if(!SD.mkdir(DATA_PATH)) 
     return STATUS_ERR_SD_DIR_CREATE_FAIL;
-  }
 
   return STATUS_OK;
 }
@@ -152,14 +157,15 @@ status_t SD_init_data_dir() {
  * @brief Given a config JSON file, store it on the SD card
  * @param cfg - File to write to SD
  * @return: status_t
- * TODO: Error handling
  */
 status_t SD_update_config(const JsonObject& cfg) {
   File f;
   size_t bytes_written;
 
   // First, delete the old config.json file
-  SD.remove(CONFIG_PATH);
+  if(!SD.remove(CONFIG_PATH))
+    return STATUS_ERR_SD_REMOVE_FAIL;
+
   f = SD.open(CONFIG_PATH, FILE_WRITE);
   if(!f)
     return STATUS_ERR_SD_OPEN_FAIL;
@@ -168,9 +174,8 @@ status_t SD_update_config(const JsonObject& cfg) {
   f.flush();
   f.close();
 
-  if (bytes_written == 0) {
+  if (bytes_written == 0) 
     return STATUS_ERR_SD_WRITE_FAIL;
-  }
 
   return STATUS_OK;
 }
@@ -179,14 +184,15 @@ status_t SD_update_config(const JsonObject& cfg) {
  * @brief Given a cal JSON file, store it on the SD card
  * @param cfg - File to write to SD
  * @return: status_t
- * TODO: Error handling
  */
 status_t SD_update_cal(const JsonObject& cal) {
   File f;
   size_t bytes_written;
 
   // First, delete the old config.json file
-  SD.remove(CAL_PATH);
+  if(!SD.remove(CAL_PATH))
+    return STATUS_ERR_SD_REMOVE_FAIL;
+
   f = SD.open(CAL_PATH, FILE_WRITE);
   if(!f)
     return STATUS_ERR_SD_OPEN_FAIL;
@@ -195,9 +201,8 @@ status_t SD_update_cal(const JsonObject& cal) {
   f.flush();
   f.close();
 
-  if (bytes_written == 0) {
+  if (bytes_written == 0) 
     return STATUS_ERR_SD_WRITE_FAIL;
-  }
 
   return STATUS_OK;
 }
@@ -206,20 +211,19 @@ status_t SD_update_cal(const JsonObject& cal) {
  * @brief Add a new sweep to the SD card
  * @param sweep_name - sweep to create
  * @return: status_t
- * TODO: Error handling
- *       Create a .csv file, not just an arbitrary sweep file
  */
 status_t SD_add_sweep(const char* sweep_name) {
     char file_path[256]; // Max length of file path is 256 bytes = 256 characters
 
-    // Create "<DATA_PATH>/<sweep_name>.csv"
+    // Create "<DATA_PATH>/<sweep_name>.csv" string in file_path buffer
     int n = snprintf(file_path, sizeof(file_path), "%s/%s.csv", DATA_PATH, sweep_name);
     if (n <= 0 || n >= (int)sizeof(file_path))
-        return STATUS_ERR_UNKNOWN;
+        return STATUS_ERR_SD_PATH_TOO_LONG;
 
     // Recreate file fresh (avoid appending to an existing sweep)
     // TODO: Handle existing file
-    SD.remove(file_path);
+    if(!SD.remove(file_path))
+      return STATUS_ERR_SD_REMOVE_FAIL;
 
     File f = SD.open(file_path, FILE_WRITE);
     if(!f) 
@@ -241,8 +245,6 @@ status_t SD_add_sweep(const char* sweep_name) {
  * @param sweep_name - sweep to append data to
  * @param data       - array of 10 voltage values to append
  * @return: status_t
- * TODO: Error handling
- * TODO: Check floating point precision
  */
 status_t SD_add_data(const char* sweep_name, const float data[12]) {
   char file_path[256];
@@ -250,18 +252,18 @@ status_t SD_add_data(const char* sweep_name, const float data[12]) {
   // Build "<DATA_PATH>/<sweep_name>.csv"
   int n = snprintf(file_path, sizeof(file_path), "%s/%s.csv", DATA_PATH, sweep_name);
   if (n <= 0 || n >= (int)sizeof(file_path))
-      return STATUS_ERR_UNKNOWN;
+      return STATUS_ERR_SD_PATH_TOO_LONG;
 
   File f = SD.open(file_path, FILE_WRITE);
   if (!f)
       return STATUS_ERR_SD_OPEN_FAIL;
 
-  // Append one CSV row: v0,v1,...,v9\n
+  // Append one CSV row: p0,p1,...,p9\n
   // Use enough precision for voltages; adjust digits if you want.
   size_t bytes_written = 0;
   for (int i = 0; i < 12; i++) {
       if (i > 0) bytes_written += f.print(',');
-      bytes_written += f.print(data[i], 6);   // 6 digits after decimal
+      bytes_written += f.print(data[i], 4);   // 4 digits after decimal
   }
   bytes_written += f.print('\n');
 
@@ -278,20 +280,14 @@ status_t SD_add_data(const char* sweep_name, const float data[12]) {
  * @brief Delete a sweep off the SD card
  * @param sweep_name - sweep to delete
  * @return: status_t
- * TODO: Error handling
  */
 status_t SD_delete_sweep(const char* sweep_name)
 {
-  // Used for error handling
-  bool success;
-
+  
   char file_path[256];
   int n = snprintf(file_path, sizeof(file_path), "%s/%s.csv", DATA_PATH, sweep_name);
-
-  if (n <= 0 || n >= (int)sizeof(file_path)) {
-    // truncated or formatting error
-    return STATUS_ERR_UNKNOWN;
-  }
+  if (n <= 0 || n >= (int)sizeof(file_path))
+    return STATUS_ERR_SD_PATH_TOO_LONG;
 
   // Check if the sweep file exists
   File f = SD.open(file_path, FILE_READ);
@@ -301,10 +297,8 @@ status_t SD_delete_sweep(const char* sweep_name)
   f.flush();
   f.close();
 
-  success = SD.remove(file_path);
-  if(!success){
+  if(!SD.remove(file_path))
     return STATUS_ERR_SD_REMOVE_FAIL;
-  }
 
   return STATUS_OK;
 }
@@ -313,20 +307,18 @@ status_t SD_delete_sweep(const char* sweep_name)
  * @brief Reads config from SD card and copies to the argument
  * @param doc - Receives the SD data
  * @return: status_t
- * TODO: Error handling
  */
 status_t SD_get_config(JsonDocument& doc) {
    
   File config = SD.open(CONFIG_PATH, FILE_READ);
-  if(!config) {
+  if(!config) 
     return STATUS_ERR_SD_OPEN_FAIL;
-  }
 
   DeserializationError err = deserializeJson(doc, config);
-  config.close();
-  if(err) {
+  if(err) 
     return STATUS_ERR_SD_READ_FAIL;
-  }
+
+  config.close();
 
   return STATUS_OK;
 }
@@ -335,19 +327,17 @@ status_t SD_get_config(JsonDocument& doc) {
  * @brief Reads cal from SD card and copies to the argument
  * @param doc - Receives the SD data
  * @return: status_t
- * TODO: Error handling
  */
 status_t SD_get_cal(JsonDocument& doc) {
   File cal = SD.open(CAL_PATH, FILE_READ);
-  if(!cal) {
+  if(!cal) 
     return STATUS_ERR_SD_OPEN_FAIL;
-  }
 
   DeserializationError err = deserializeJson(doc, cal);
-  cal.close();
-  if(err) {
+  if(err) 
     return STATUS_ERR_SD_READ_FAIL;
-  }
+
+  cal.close();
 
   return STATUS_OK;
 }
@@ -358,10 +348,8 @@ status_t SD_get_cal(JsonDocument& doc) {
  * @param maxFiles - Most files to return
  * @param file_count - Num files returned
  * @return: status_t
- * TODO: Error handling
-         Refactor (I don't like the hard-coded 64-byte size)
  */ 
-status_t SD_get_filenames(char filenames[][64], const uint8_t maxFiles, uint8_t *file_count)
+status_t SD_get_filenames(char filenames[][256], const uint8_t maxFiles, uint8_t *file_count)
 {
   *file_count = 0;
 
@@ -369,12 +357,13 @@ status_t SD_get_filenames(char filenames[][64], const uint8_t maxFiles, uint8_t 
   if(!dir)
     return STATUS_ERR_SD_OPEN_FAIL;
 
-  File entry;
-  while((*file_count < maxFiles) && (entry = dir.openNextFile())) {
-    const char* file_name = entry.name();
-
-    strncpy(filenames[*file_count], file_name, 63); // TODO: Third 64!
-    (*file_count)++;
+  while(*file_count < maxFiles) {
+    File entry = dir.openNextFile();
+    if(!entry)
+      break;
+    
+    snprintf(filenames[*file_count], 256, "%s", entry.name());
+    (*file_count) ++;
 
     entry.close();
   }
@@ -384,25 +373,24 @@ status_t SD_get_filenames(char filenames[][64], const uint8_t maxFiles, uint8_t 
   return STATUS_OK;
 }
 
+
+
 /**
  * @brief Returns the .csv file of the specified sweep
  * @param sweep_name - Name of sweep to retrieve
  * @param csv_out - Receives file contents
  * @return: status_t
- * TODO: Error handling
  */ 
 status_t SD_get_sweep_csv(const char* sweep_name, String &csv_out) {
   char file_path[256];
 
   int n = snprintf(file_path, sizeof(file_path), "%s/%s.csv", DATA_PATH, sweep_name);
-  if (n <= 0 || n >= (int)sizeof(file_path)) {
-    return STATUS_ERR_UNKNOWN;
-  }
+  if (n <= 0 || n >= (int)sizeof(file_path)) 
+    return STATUS_ERR_SD_PATH_TOO_LONG;
 
   File f = SD.open(file_path, FILE_READ);
-  if (!f) {
+  if (!f) 
     return STATUS_ERR_SD_OPEN_FAIL;
-  }
 
   csv_out = "";
 

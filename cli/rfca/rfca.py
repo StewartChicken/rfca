@@ -1,6 +1,16 @@
 
+
+
 # TODO: ERROR HANDLING
 # TODO: Write documentation
+# TODO: Data buffer for retrieving large files
+#       - Add getFileSize(string) within SD driver (returns bytes) 
+#       - Partition into chunks and loop over chunks to send to CLI
+#       - Refactor SD_get_sweep_csv -> SD_get_sweep_csv_rows (returns subset of rows rather than the whole file)
+#       - Within CLI wait_for_response(): compare current chunk number to max_chunks to exit loop
+# TODO: Errors thrown if Teensy disconnected but CLI doesn't know
+# TODO: Macros for SD file name/count/dir_length limits?
+# TODO: Refactor SD_get_filenames() function
 
 
 # For FW interaction
@@ -122,7 +132,8 @@ command_set = {
                     "arguments": ["<output_port>    Port number to open (1-8)"],
                     "examples": ["port 1",
                                  "port 8"]
-                }
+                },
+
             }
 
 

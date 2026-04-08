@@ -1,8 +1,6 @@
 
-// Documentation
 // https://arduinojson.org/v7/
-// https://docs.arduino.cc/libraries/sd/#SD%20class
-// https://docs.arduino.cc/libraries/sd/#File%20class
+// https://docs.arduino.cc/libraries/sd/
 
 #ifndef _SD_INTERFACE_H
 #define _SD_INTERFACE_H
@@ -41,7 +39,7 @@ status_t SD_delete_sweep(const char* sweep_name);
 // Data retrieval functions
 status_t SD_get_config(JsonDocument& doc); // Retrieve the config.json file from the SD card
 status_t SD_get_cal(JsonDocument& doc); // Retrieve the cal.json file from the SD card
-status_t SD_get_filenames(char filenames[][64], const uint8_t maxFiles, uint8_t* file_count); // TODO: refactor
+status_t SD_get_filenames(char filenames[][256], const uint8_t maxFiles, uint8_t* file_count); 
 status_t SD_get_sweep_csv(const char* sweep_name, String &csv_out);
 
 #endif // _SD_INTERFACE_H

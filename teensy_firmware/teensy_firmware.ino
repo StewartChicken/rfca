@@ -165,7 +165,7 @@ static void bootRFCA() {
 #if ENABLE_DEBUG_PRINTS
   Serial.println("Initializing ADF5356...");
 #endif  
-  ADF_spi_init(); // Communication with ADF5356
+  adf5356_spi_init(); // Communication with ADF5356
   delay(1000); // For safety
 
   // Global state variable
@@ -199,7 +199,7 @@ static void shutdownRFCA() {
 #if ENABLE_DEBUG_PRINTS
   Serial.println("Closing ADF5356 output...");
 #endif  
-  ADF_disable_rf();
+  adf5356_disable_rf();
   delay(1000); // For safety
 
 #if ENABLE_DEBUG_PRINTS
@@ -348,7 +348,7 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
             serializeJson(progress, Serial);
             Serial.println();
 
-            ADF_write_freq(curr_freq);
+            adf5356_write_freq(curr_freq);
             delay(2); // 2ms delay for sanity
 
             int raw = analogRead(log_amp_pins[in_port - 1]); // log_amp_pins indexed (0-9)
@@ -404,8 +404,8 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
     }
     else if(strcmp(cmd, "list") == 0) {
         const uint8_t MAX_FILES = 20;
-        char filenames[MAX_FILES][64];
-        uint8_t file_count = 0;
+        char filenames[MAX_FILES][256];
+        uint8_t file_count = 0; // Index
 
         cmd_status = SD_get_filenames(filenames, MAX_FILES, &file_count);
         
@@ -424,11 +424,16 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
 
         String csv_data;
 
+        // long file_size = SD_get_file_size(sweep_name);
+        // uint32_t num_chunks = file_size / 1024  (1 kb chunks)
+        // for chunk in num_chunks 
         cmd_status = SD_get_sweep_csv(sweep_name, csv_data);
 
         response["status"] = "OK";
         response["data"]["sweep_name"] = sweep_name;
         response["data"]["sweep_data"] = csv_data;
+        // response["data"]["chunk_num"] = chunk
+        // response["data"]["max_chunks"] = num_chunks
 
     }
     else if(strcmp(cmd, "delete") == 0) {
@@ -455,7 +460,7 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
       Serial.print("Frequency: ");
       Serial.println(freq);
 #endif
-      ADF_write_freq(freq);
+      adf5356_write_freq(freq);
       delay(500);
 
       // Slope and Intercept depend on frequency in GHz
@@ -574,7 +579,7 @@ static status_t conduct_sweep(const char* sweep_name) {
     while(curr_freq <= stop_freq) {
       data[1] = (float)(curr_freq);
 
-      ADF_write_freq(curr_freq);
+      adf5356_write_freq(curr_freq);
       
       for(int i = 0; i < NUM_LOG_AMPS; i++) {
 

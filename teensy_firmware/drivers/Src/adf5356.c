@@ -6,11 +6,11 @@
  * @return void
  * TODO: Error handling
  */
-void ADF_spi_init() {
+void adf5356_spi_init() {
 
   // SPI CS Pin (Latch Enable on ADF) - idles HIGH
-  pinMode(ADF_LE, OUTPUT);
-  digitalWrite(ADF_LE, HIGH); 
+  pinMode(ADF5356_LE, OUTPUT);
+  digitalWrite(ADF5356_LE, HIGH); 
 
   // Begin Teensy4.1 SPI0
   // GPIO 37 - CS
@@ -24,9 +24,9 @@ void ADF_spi_init() {
  * @brief Disable ADF5356 Output A by writing to register 6
  * @return void
  */
-void ADF_disable_rf() {
+void adf5356_disable_rf() {
   uint8_t reg6[4] = {0x35, 0x01, 0x84, 0x26};
-  ADF_spi_write(reg6, 4);
+  adf5356_spi_write(reg6, 4);
 
 #if ENABLE_DEBUG_PRINTS
   Serial.println("Wrote: 0x35 01 84 26 to Register 6");
@@ -40,7 +40,7 @@ void ADF_disable_rf() {
  * @return: void
  * TODO: Error handling
  */
-void ADF_write_freq(uint32_t frequency) {
+void adf5356_write_freq(uint32_t frequency) {
   
   if(frequency < 800) {
     // TODO: Throw error
@@ -50,8 +50,8 @@ void ADF_write_freq(uint32_t frequency) {
   }
 
   uint8_t reg_config[14][4] = {0}; // Overwritten below
-  ADF_config_regs(reg_config, frequency);
-  ADF_write_regs(reg_config, REG_WRITE_DELAY);
+  adf5356_config_regs(reg_config, frequency);
+  adf5356_write_regs(reg_config, REG_WRITE_DELAY);
 }
 
 /**
@@ -61,7 +61,7 @@ void ADF_write_freq(uint32_t frequency) {
  * @return: void
  * TODO: Error handling
  */
-static void ADF_config_regs(uint8_t reg[14][4], const uint32_t frequency) {
+static void adf5356_config_regs(uint8_t reg[14][4], const uint32_t frequency) {
 
   // TODO: Error checking for frequency range
 
@@ -159,7 +159,7 @@ static void ADF_config_regs(uint8_t reg[14][4], const uint32_t frequency) {
  * @return void
  * TODO: Error handling
  */
-static void ADF_write_regs(const uint8_t reg[14][4], const uint32_t delay_ms) {
+static void adf5356_write_regs(const uint8_t reg[14][4], const uint32_t delay_ms) {
 
   for(int i = 0; i < 14; i ++) {
 
@@ -185,7 +185,7 @@ static void ADF_write_regs(const uint8_t reg[14][4], const uint32_t delay_ms) {
 
     // Write 4 bytes (a single 32-bit register)
     //uint32_t ret = no_os_spi_write_and_read(spi_desc, buf, 4);
-    ADF_spi_write(buf, 4);
+    adf5356_spi_write(buf, 4);
     delay(delay_ms);
   }
 
@@ -202,7 +202,7 @@ static void ADF_write_regs(const uint8_t reg[14][4], const uint32_t delay_ms) {
  * @return void
  * TODO: Error handling
  */
-static void ADF_spi_write(uint8_t *data, uint16_t num_bytes) {
+static void adf5356_spi_write(uint8_t *data, uint16_t num_bytes) {
 
   // Steps:
   // 1. Begin SPI transaction
@@ -218,7 +218,7 @@ static void ADF_spi_write(uint8_t *data, uint16_t num_bytes) {
     SPI_MODE0     // CPOL=0, CPHA=0
   );
 
-  digitalWrite(ADF_LE, LOW); // Pull LE low
+  digitalWrite(ADF5356_LE, LOW); // Pull LE low
   delayMicroseconds(1); 
 
   SPI.beginTransaction(spiSettings);
@@ -226,7 +226,7 @@ static void ADF_spi_write(uint8_t *data, uint16_t num_bytes) {
   SPI.endTransaction();
 
   delayMicroseconds(1);
-  digitalWrite(ADF_LE, HIGH); // Latch data from ADF5356 Shift Register to Data Registers
+  digitalWrite(ADF5356_LE, HIGH); // Latch data from ADF5356 Shift Register to Data Registers
 }
 
 /**

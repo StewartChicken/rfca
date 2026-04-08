@@ -58,10 +58,10 @@ static const uint8_t log_amp_pins[10] = {
 // ============================================================
 
 // ADF5356 Pins
-#define ADF_LE                      36 // SPI0 CS  
-#define ADF_DATA                    11 // SPI0 MOSI 
-#define ADF_MISO                    12 // SPI0 MISO Not Used (Registers are write only)
-#define ADF_CLK                     13 // SPI0 CLK
+#define ADF5356_LE                  36 // SPI0 CS  
+#define ADF5356_DATA                11 // SPI0 MOSI 
+#define ADF5356_MISO                12 // SPI0 MISO Not Used (Registers are write only)
+#define ADF5356_CLK                 13 // SPI0 CLK
 
 
 
@@ -122,6 +122,7 @@ typedef enum {
     STATUS_ERR_SD_WRITE_FAIL        = 0X13,
     STATUS_ERR_SD_DIR_CREATE_FAIL   = 0X14,
     STATUS_ERR_SD_REMOVE_FAIL       = 0X15,
+    STATUS_ERR_SD_PATH_TOO_LONG     = 0x16,
 
     STATUS_ERR_UNKNOWN              = 0XFF,
 } status_t;
@@ -137,6 +138,7 @@ const char* status_to_str(status_t s)
         case STATUS_ERR_SD_WRITE_FAIL:      return "SD Data Write Failed";
         case STATUS_ERR_SD_DIR_CREATE_FAIL: return "SD Directory Creation Failed";
         case STATUS_ERR_SD_REMOVE_FAIL:     return "SD Data Removal Failed";
+        case STATUS_ERR_SD_PATH_TOO_LONG:   return "SD File Path Too Long";
 
         case STATUS_ERR_UNKNOWN:            return "Unknown Error Code";
 
