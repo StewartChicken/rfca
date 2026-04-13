@@ -414,3 +414,73 @@ status_t SD_get_sweep_csv(const char* sweep_name, String &csv_out) {
 
   return STATUS_OK;
 }
+
+/**
+ * @brief Returns a specific row from the specified sweep CSV
+ * @param sweep_name - Name of sweep to retrieve
+ * @param row_out - Receives the row contents (without trailing newline)
+ * @param row_num - Zero-based row index
+ * @return: status_t
+ */
+status_t SD_get_sweep_csv_row(const char* sweep_name, String &row_out, uint32_t row_num) {
+  char file_path[MAX_FILE_PATH_LENGTH];
+
+  int n = snprintf(file_path, sizeof(file_path), "%s/%s.csv", DATA_PATH, sweep_name);
+  if (n <= 0 || n >= (int)sizeof(file_path))
+    return STATUS_ERR_SD_PATH_TOO_LONG;
+
+  File f = SD.open(file_path, FILE_READ);
+  if (!f)
+    return STATUS_ERR_SD_OPEN_FAIL;
+
+  row_out = "";
+
+  uint32_t current_row = 0;
+  String current_line = "";
+  
+  while (f.available()) {
+    char c = (char)f.read();
+
+    // Handle line endings
+    if (c == '\n') {
+      if (current_row == row_num) {
+        row_out = current_line;
+        f.close();
+        return STATUS_OK;
+      }
+
+      current_line = "";
+      current_row++;
+    } else {
+      current_line += c;
+    }
+  }
+
+  f.close();
+  return STATUS_OK; // TODO: This should actually be an error
+}
+
+
+/**
+ * @brief Get size of a sweep file in bytes
+ * @param sweep_name - name of the sweep
+ * @param size_out - pointer to store size
+ * @return status_t
+ */
+status_t SD_get_sweep_size(const char* sweep_name, uint32_t* size_out)
+{
+  
+  char file_path[MAX_FILE_PATH_LENGTH];
+  int n = snprintf(file_path, sizeof(file_path), "%s/%s.csv", DATA_PATH, sweep_name);
+  if (n <= 0 || n >= (int)sizeof(file_path))
+    return STATUS_ERR_SD_PATH_TOO_LONG;
+
+  File f = SD.open(file_path, FILE_READ);
+  if (!f)
+    return STATUS_ERR_SD_OPEN_FAIL;
+
+  *size_out = f.size();   // 🔑 key line
+
+  f.close();
+  return STATUS_OK;
+}

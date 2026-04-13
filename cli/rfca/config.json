@@ -1,5 +1,5 @@
 {
-"sp8t_out_ports": [1, 2],
+"sp8t_out_ports": [1, 2, 3, 4, 5, 6],
 "start_freq": 1000,
 "stop_freq": 6000,
 "step_size": 200,

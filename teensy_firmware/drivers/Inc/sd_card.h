@@ -43,5 +43,7 @@ status_t SD_get_config(JsonDocument& doc); // Retrieve the config.json file from
 status_t SD_get_cal(JsonDocument& doc); // Retrieve the cal.json file from the SD card
 status_t SD_get_filenames(char filenames[][MAX_FILE_PATH_LENGTH], const uint8_t maxFiles, uint8_t* file_count); 
 status_t SD_get_sweep_csv(const char* sweep_name, String &csv_out);
+status_t SD_get_sweep_csv_row(const char* sweep_name, String &row_out, uint32_t row_num);
+status_t SD_get_sweep_size(const char* sweep_name, uint32_t* size_out);
 
 #endif // _SD_INTERFACE_H
