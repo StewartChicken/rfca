@@ -1,6 +1,6 @@
 
 
-
+# TODO: ERROR HANDLING
 # TODO: Write documentation
 # TODO: Data buffer for retrieving large files
 #       - Add getFileSize(string) within SD driver (returns bytes) 
@@ -10,6 +10,7 @@
 # TODO: Macros for SD file name/count/dir_length limits?
 # TODO: Refactor SD_get_filenames() function
 # TODO: Rewrite shutdown cmd functionality
+# TODO: Add slope/intercept functions for logamp rather than computing inline
 
 
 # For FW interaction

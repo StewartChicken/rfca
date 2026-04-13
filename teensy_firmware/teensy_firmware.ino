@@ -21,6 +21,9 @@ static void CLI_sendAcknowledge(const char* cmd);
 static void CLI_sendComplete(const char* cmd);
 static status_t processCommand(const char* cmd, JsonVariant data);
 static status_t conduct_sweep(const char* sweep_name);
+float get_log_amp_slope(uint32_t frequency);
+float get_log_amp_intercept(uint32_t frequency);
+float get_log_amp_power_2D_quadratic(float voltage, uint32_t frequency);
 static Config_t update_config_struct(const JsonDocument& config);
 float get_cal_delta(uint8_t out, uint8_t in, uint32_t frequency);
 
@@ -466,17 +469,9 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
       cmd_status = adf5356_write_freq(freq);
       delay(500);
 
-      // Slope and Intercept depend on frequency in GHz
-      float slope = LOG_AMP_SLOPE_3*pow(((float)freq / 1000.0), 3) 
-                    + LOG_AMP_SLOPE_2*pow(((float)freq / 1000.0), 2) 
-                    + LOG_AMP_SLOPE_1*((float)freq / 1000.0) 
-                    + LOG_AMP_SLOPE_0;
-
-      float intercept = LOG_AMP_INTERCEPT_4*pow(((float)freq / 1000.0), 4) 
-                        + LOG_AMP_INTERCEPT_3*pow(((float)freq / 1000.0), 3) 
-                        + LOG_AMP_INTERCEPT_2*pow(((float)freq / 1000.0), 2) 
-                        + LOG_AMP_INTERCEPT_1*((float)freq / 1000.0) 
-                        + LOG_AMP_INTERCEPT_0;
+      // Slope and Intercept depend on frequency
+      float slope = get_log_amp_slope(freq);
+      float intercept = get_log_amp_intercept(freq);
 
       float total_power = 0;
       const uint16_t WINDOW = 200;
@@ -484,9 +479,16 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
         float raw = analogRead(LOG_AMP_0);
         float voltage = (raw * (float)ADC_REF_VOLTAGE) / (float)ADC_MAX_VALUE; // Convert raw ADC value to voltage (V)
 
+        // Which formula to use for power computation
+        float power;
+#if USE_QUAD_LOG_AMP
+        // Use a 2D quad w/ voltage and frequency rather than slope + intercept
+        power = get_log_amp_power_2D_quadratic(voltage, freq);
+#else
         // Power (dB) = (Measured Voltage (mV) / Slope) + Intercept
-        // ^^^ This comes from the ADL5507 Log-Ammp datasheet
-        float power = (voltage * 1000.0) / slope + intercept;
+        // ^^^ This comes from the ADL5902 Log-Ammp datasheet
+        power = (voltage * 1000.0) / slope + intercept;
+#endif
 
         total_power += power;
       }
@@ -545,7 +547,7 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
 
 /**
  * @brief Conduct sweep w/ in hardware according to config file
- * @param TODO
+ * @param sweep_name character array containing sweep name as it will be saved on the SD card
  * @return: status_t
  * TODO: Error handling
  */
@@ -604,33 +606,35 @@ static status_t conduct_sweep(const char* sweep_name) {
       if(cmd_status != STATUS_OK)
         return cmd_status;
       
+      // Slope and Intercept depend on frequency
+      float slope = get_log_amp_slope(curr_freq);
+      float intercept = get_log_amp_intercept(curr_freq);
+
       for(int i = 0; i < NUM_LOG_AMPS; i++) {
-
-        // Slope and Intercept depend on frequency in GHz
-        float slope = LOG_AMP_SLOPE_3*pow(((float)curr_freq / 1000.0), 3) 
-                      + LOG_AMP_SLOPE_2*pow(((float)curr_freq / 1000.0), 2) 
-                      + LOG_AMP_SLOPE_1*((float)curr_freq / 1000.0) 
-                      + LOG_AMP_SLOPE_0;
-
-        float intercept = LOG_AMP_INTERCEPT_4*pow(((float)curr_freq / 1000.0), 4) 
-                          + LOG_AMP_INTERCEPT_3*pow(((float)curr_freq / 1000.0), 3) 
-                          + LOG_AMP_INTERCEPT_2*pow(((float)curr_freq / 1000.0), 2) 
-                          + LOG_AMP_INTERCEPT_1*((float)curr_freq / 1000.0) 
-                          + LOG_AMP_INTERCEPT_0;
-
         int raw = analogRead(log_amp_pins[i]);
         float voltage = (raw * (float)ADC_REF_VOLTAGE) / (float)ADC_MAX_VALUE; // Convert raw ADC value to voltage (V)
 
 #if ENABLE_CALIBRATION
-        voltage += get_cal_delta(port, i, curr_freq); // output port, input port, current frequency
+        voltage += get_cal_delta(port + 1, i + 1, curr_freq); // output port, input port, current frequency
 #endif
 
+// Which formula to use for power computation
+        float power;
+#if USE_QUAD_LOG_AMP
+        // Use a 2D quad w/ voltage and frequency rather than slope + intercept
+        power = get_log_amp_power_2D_quadratic(voltage, curr_freq);
+#else
         // Power (dB) = (Measured Voltage (mV) / Slope) + Intercept
         // ^^^ This comes from the ADL5902 Log-Ammp datasheet
-        float power = (voltage * 1000.0) / slope + intercept;
+        power = (voltage * 1000.0) / slope + intercept;
+#endif
 
-        data[i + 2] = voltage;
-        //data[i + 2] = power;
+// Record voltage or power
+#if RECORD_VOLTAGE
+        data[i + 2] = voltage; // Record raw voltage
+#else
+        data[i + 2] = power;  // Record power instead of voltage
+#endif
         delay(LOG_AMP_READ_DELAY);
         
       }
@@ -653,6 +657,63 @@ static status_t conduct_sweep(const char* sweep_name) {
   }
 
   return cmd_status;
+} // END OF conduct_sweep(const char* sweep_name)
+
+/**
+ * @brief Compute the slope for log amp power for a given frequency using precompiled coefficients
+ * @param frequency - frequency argument (MHz)
+ * @return: float - slope 
+ */
+float get_log_amp_slope(uint32_t frequency) {
+
+  float freq = (float)frequency / 1000.0; // Convert to GHz
+
+  // Third order regression
+  float slope = LOG_AMP_SLOPE_3*pow(freq, 3) 
+              + LOG_AMP_SLOPE_2*pow(freq, 2) 
+              + LOG_AMP_SLOPE_1*(freq) 
+              + LOG_AMP_SLOPE_0;
+
+  return slope;
+}
+
+/**
+ * @brief Compute the intercept for log amp power for a given frequency using precompiled coefficients
+ * @param frequency - frequency argument (MHz)
+ * @return: float - intercept 
+ */
+float get_log_amp_intercept(uint32_t frequency) {
+
+  float freq = (float)frequency / 1000.0; // Convert to GHz
+
+  // Fourth order regression
+  float intercept = LOG_AMP_INTERCEPT_4*pow(freq, 4) 
+                  + LOG_AMP_INTERCEPT_3*pow(freq, 3) 
+                  + LOG_AMP_INTERCEPT_2*pow(freq, 2) 
+                  + LOG_AMP_INTERCEPT_1*(freq) 
+                  + LOG_AMP_INTERCEPT_0;
+
+  return intercept;
+}
+
+/**
+ * @brief Compute power using a 2D quadratic with voltage and frequency arguments
+ * @param voltage - voltage argument (Volts)
+ * @param frequency - frequency argument (MHz)
+ * @return: float - power 
+ */
+float get_log_amp_power_2D_quadratic(float voltage, uint32_t frequency) {
+
+  float freq = (float)frequency / 1000.0; // Convert to GHz
+
+  float power = -65.38166 
+                + 24.4801*voltage 
+                - 4.1305*(freq) 
+                - 1.7789*pow(voltage, 2)
+                + 1.1317*voltage*freq
+                + 0.7197*pow(freq, 2);
+
+  return power;
 }
 
 /**
