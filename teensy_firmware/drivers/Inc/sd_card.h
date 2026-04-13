@@ -13,15 +13,6 @@
 // Data
 #include "../../common_defs.h"
 
-// The config file and sweep data will be stored at these paths on the SD card
-static const char* CONFIG_PATH = "/config.json";
-static const char* CAL_PATH = "/cal.json";
-static const char* DATA_PATH = "/data";
-
-// Max length of file path is 256 bytes = 256 characters
-#define MAX_FILE_PATH_LENGTH  256
-#define CSV_COL_NUM           12 // This shouldn't be changed unless adding more data to the .csv
-
 // SD Init functions
 status_t SD_init(void);
 bool SD_does_config_exist(void);
