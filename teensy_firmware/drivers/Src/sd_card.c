@@ -221,7 +221,7 @@ status_t SD_update_cal(const JsonObject& cal) {
  * @return: status_t
  */
 status_t SD_add_sweep(const char* sweep_name) {
-    char file_path[256]; // Max length of file path is 256 bytes = 256 characters
+    char file_path[MAX_FILE_PATH_LENGTH]; // Max length of file path is 256 bytes = 256 characters
 
     // Create "<DATA_PATH>/<sweep_name>.csv" string in file_path buffer
     int n = snprintf(file_path, sizeof(file_path), "%s/%s.csv", DATA_PATH, sweep_name);
@@ -256,8 +256,8 @@ status_t SD_add_sweep(const char* sweep_name) {
  * @param data       - array of 10 voltage values to append
  * @return: status_t
  */
-status_t SD_add_data(const char* sweep_name, const float data[12]) {
-  char file_path[256];
+status_t SD_add_data(const char* sweep_name, const float data[CSV_COL_NUM]) {
+  char file_path[MAX_FILE_PATH_LENGTH];
 
   // Build "<DATA_PATH>/<sweep_name>.csv"
   int n = snprintf(file_path, sizeof(file_path), "%s/%s.csv", DATA_PATH, sweep_name);
@@ -271,7 +271,7 @@ status_t SD_add_data(const char* sweep_name, const float data[12]) {
   // Append one CSV row: p0,p1,...,p9\n
   // Use enough precision for voltages; adjust digits if you want.
   size_t bytes_written = 0;
-  for (int i = 0; i < 12; i++) {
+  for (int i = 0; i < CSV_COL_NUM; i++) {
       if (i > 0) bytes_written += f.print(',');
       bytes_written += f.print(data[i], 4);   // 4 digits after decimal
   }
@@ -294,7 +294,7 @@ status_t SD_add_data(const char* sweep_name, const float data[12]) {
 status_t SD_delete_sweep(const char* sweep_name)
 {
   
-  char file_path[256];
+  char file_path[MAX_FILE_PATH_LENGTH];
   int n = snprintf(file_path, sizeof(file_path), "%s/%s.csv", DATA_PATH, sweep_name);
   if (n <= 0 || n >= (int)sizeof(file_path))
     return STATUS_ERR_SD_PATH_TOO_LONG;
@@ -361,7 +361,7 @@ status_t SD_get_cal(JsonDocument& doc) {
  * @param file_count - Num files returned
  * @return: status_t
  */ 
-status_t SD_get_filenames(char filenames[][256], const uint8_t maxFiles, uint8_t *file_count)
+status_t SD_get_filenames(char filenames[][MAX_FILE_PATH_LENGTH], const uint8_t maxFiles, uint8_t *file_count)
 {
   *file_count = 0;
 
@@ -374,7 +374,7 @@ status_t SD_get_filenames(char filenames[][256], const uint8_t maxFiles, uint8_t
     if(!entry)
       break;
     
-    snprintf(filenames[*file_count], 256, "%s", entry.name());
+    snprintf(filenames[*file_count], MAX_FILE_PATH_LENGTH, "%s", entry.name());
     (*file_count) ++;
 
     entry.close();
@@ -394,7 +394,7 @@ status_t SD_get_filenames(char filenames[][256], const uint8_t maxFiles, uint8_t
  * @return: status_t
  */ 
 status_t SD_get_sweep_csv(const char* sweep_name, String &csv_out) {
-  char file_path[256];
+  char file_path[MAX_FILE_PATH_LENGTH];
 
   int n = snprintf(file_path, sizeof(file_path), "%s/%s.csv", DATA_PATH, sweep_name);
   if (n <= 0 || n >= (int)sizeof(file_path)) 

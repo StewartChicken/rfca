@@ -410,7 +410,7 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
     }
     else if(strcmp(cmd, "list") == 0) {
         const uint8_t MAX_FILES = 20;
-        char filenames[MAX_FILES][256];
+        char filenames[MAX_FILES][256]; // 256 is max file length
         uint8_t file_count = 0; // Index
 
         cmd_status = SD_get_filenames(filenames, MAX_FILES, &file_count);
