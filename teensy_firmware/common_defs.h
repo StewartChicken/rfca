@@ -118,7 +118,8 @@ static const char* DATA_PATH = "/data";
 // Max length of file path is 256 bytes = 256 characters
 #define MAX_FILE_PATH_LENGTH  256
 #define CSV_COL_NUM           12 // This shouldn't be changed unless adding more data to the .csv
-
+#define HEADER_BYTES          59 // The header is 59 bytes
+#define DATA_ROW_BYTES        107 // The data rows are 107 bytes
 
 // ============================================================
 // Status/Error handling

@@ -854,6 +854,10 @@ def processData(cmd, data):
     elif(cmd == "retrieve"):
         sweep_name = data.get("sweep_name")
         sweep_data = data.get("sweep_data")
+        file_bytes = data.get("file_bytes")
+        num_rows = data.get("num_rows")
+
+        info(f"File has {file_bytes} bytes in {num_rows} rows")
         
         # Get directory of this script
         script_dir = Path(__file__).resolve().parent

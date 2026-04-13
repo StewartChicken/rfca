@@ -430,7 +430,14 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
 
         String csv_data;
 
-        // long file_size = SD_get_file_size(sweep_name);
+        // Get file size
+        uint32_t bytes;
+        cmd_status = SD_get_sweep_size(sweep_name, &bytes);
+
+        // Num rows in CSV
+        uint32_t num_data_rows;
+        num_data_rows = (bytes - HEADER_BYTES) / DATA_ROW_BYTES;
+
         // uint32_t num_chunks = file_size / 1024  (1 kb chunks)
         // for chunk in num_chunks 
         cmd_status = SD_get_sweep_csv(sweep_name, csv_data);
@@ -438,6 +445,8 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
         response["status"] = "OK";
         response["data"]["sweep_name"] = sweep_name;
         response["data"]["sweep_data"] = csv_data;
+        response["data"]["file_bytes"] = bytes;
+        response["data"]["num_rows"] = num_data_rows; 
         // response["data"]["chunk_num"] = chunk
         // response["data"]["max_chunks"] = num_chunks
 

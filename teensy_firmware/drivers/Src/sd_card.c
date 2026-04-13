@@ -240,7 +240,8 @@ status_t SD_add_sweep(const char* sweep_name) {
         return STATUS_ERR_SD_OPEN_FAIL;
 
     // 10 blank columns (10 voltage readings)
-    size_t bytes_written = f.println("out_port,frequency,LA0,LA1,LA2,LA3,LA4,LA5,LA6,LA7,LA8,LA9");
+    // Should write 59 bytes
+    size_t bytes_written = f.print("out_port,frequency,LA0,LA1,LA2,LA3,LA4,LA5,LA6,LA7,LA8,LA9\n");
     f.flush();
     f.close();
 
@@ -270,6 +271,7 @@ status_t SD_add_data(const char* sweep_name, const float data[CSV_COL_NUM]) {
 
   // Append one CSV row: p0,p1,...,p9\n
   // Use enough precision for voltages; adjust digits if you want.
+  // Should write 107 bytes
   size_t bytes_written = 0;
   for (int i = 0; i < CSV_COL_NUM; i++) {
       if (i > 0) bytes_written += f.print(',');
