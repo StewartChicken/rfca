@@ -428,8 +428,6 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
     else if(strcmp(cmd, "retrieve") == 0) {
         const char *sweep_name = data.as<const char*>();
 
-        String csv_data;
-
         // Get file size
         uint32_t bytes;
         cmd_status = SD_get_sweep_size(sweep_name, &bytes);
@@ -440,6 +438,7 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
 
         // uint32_t num_chunks = file_size / 1024  (1 kb chunks)
         // for chunk in num_chunks 
+        String csv_data;
         cmd_status = SD_get_sweep_csv(sweep_name, csv_data);
 
         response["status"] = "OK";
@@ -447,8 +446,6 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
         response["data"]["sweep_data"] = csv_data;
         response["data"]["file_bytes"] = bytes;
         response["data"]["num_rows"] = num_data_rows; 
-        // response["data"]["chunk_num"] = chunk
-        // response["data"]["max_chunks"] = num_chunks
 
     }
     else if(strcmp(cmd, "delete") == 0) {
