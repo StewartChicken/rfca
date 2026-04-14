@@ -446,7 +446,7 @@ status_t SD_get_sweep_csv_row(const char* sweep_name, String &row_out, uint32_t 
     // Handle line endings
     if (c == '\n') {
       if (current_row == row_num) {
-        row_out = current_line;
+        row_out = current_line + '\n';
         f.close();
         return STATUS_OK;
       }

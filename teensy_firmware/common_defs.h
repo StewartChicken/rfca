@@ -177,7 +177,7 @@ const char* status_to_str(status_t s)
 // DEBUG config (dev) flags
 #define ENABLE_DEBUG_PRINTS 0 // 0 DEFAULT | This needs to be 0 when using the CLI to communicate with the Teensy
 #define ENABLE_CALIBRATION  1 // 1 DEFAULT | Determines if calibration data is accounted for when recording loss measurements
-#define USE_QUAD_LOG_AMP    0 // 0 DEFAULT | Determines which regression approach is used to compute power output of log amp
+#define USE_QUAD_LOG_AMP    1 // 0 DEFAULT | Determines which regression approach is used to compute power output of log amp
 #define RECORD_VOLTAGE      0 // 0 DEFAULT | Determines whether the raw voltage or power conversion is recorded to the SD card
 
 // Sweep parameters

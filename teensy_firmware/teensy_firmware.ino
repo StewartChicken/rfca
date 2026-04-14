@@ -712,12 +712,12 @@ float get_log_amp_power_2D_quadratic(float voltage, uint32_t frequency) {
 
   float freq = (float)frequency / 1000.0; // Convert to GHz
 
-  float power = -65.38166 
-                + 24.4801*voltage 
-                - 4.1305*(freq) 
-                - 1.7789*pow(voltage, 2)
-                + 1.1317*voltage*freq
-                + 0.7197*pow(freq, 2);
+  float power = -65.71754
+                + 24.0671*voltage 
+                - 3.7236*(freq) 
+                - 1.677*pow(voltage, 2)
+                + 1.0993*voltage*freq
+                + 0.6871*pow(freq, 2);
 
   return power;
 }
