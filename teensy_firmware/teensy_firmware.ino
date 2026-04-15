@@ -436,16 +436,34 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
         uint32_t num_data_rows;
         num_data_rows = (bytes - HEADER_BYTES) / DATA_ROW_BYTES;
 
-        // uint32_t num_chunks = file_size / 1024  (1 kb chunks)
-        // for chunk in num_chunks 
-        String csv_data;
-        cmd_status = SD_get_sweep_csv(sweep_name, csv_data);
+        // 10 * 107 bytes
+        uint32_t rows_per_chunk = 10;
+        uint32_t num_chunks = (num_data_rows + 9) / rows_per_chunk; // The total number of data chunks sent from FW to CLI
 
-        response["status"] = "OK";
-        response["data"]["sweep_name"] = sweep_name;
-        response["data"]["sweep_data"] = csv_data;
-        response["data"]["file_bytes"] = bytes;
-        response["data"]["num_rows"] = num_data_rows; 
+        String csv_data = "";
+        for(uint32_t cur_chunk = 0; cur_chunk < num_chunks; cur_chunk++) {
+
+          String chunk = "";
+          for(uint32_t row = 0; row < rows_per_chunk; row++) {
+            String row_out;
+            cmd_status = SD_get_sweep_csv_row(sweep_name, row_out, (cur_chunk * rows_per_chunk) + row);
+            chunk += row_out;
+          }
+
+          response["status"] = "OK";
+          response["data"]["sweep_name"] = sweep_name;
+          response["data"]["sweep_data"] = chunk;
+          response["data"]["file_bytes"] = bytes;
+          response["data"]["num_rows"] = num_data_rows; 
+          response["data"]["num_chunks"] = num_chunks; 
+          response["data"]["current_chunk"] = cur_chunk; 
+
+          // Send response
+          serializeJson(response, Serial);
+          Serial.println();
+        }
+
+        return cmd_status;
 
     }
     else if(strcmp(cmd, "delete") == 0) {
@@ -475,9 +493,9 @@ static status_t processCommand(const char* cmd, JsonVariant data) {
       cmd_status = adf5356_write_freq(freq);
       delay(500);
 
-      // Slope and Intercept depend on frequency
-      float slope = get_log_amp_slope(freq);
-      float intercept = get_log_amp_intercept(freq);
+      // Slope and Intercept depend on frequency (unused depending on regression method)
+      float slope __attribute__((unused)) = get_log_amp_slope(freq);
+      float intercept __attribute__((unused)) = get_log_amp_intercept(freq);
 
       float total_power = 0;
       const uint16_t WINDOW = 200;
@@ -612,9 +630,9 @@ static status_t conduct_sweep(const char* sweep_name) {
       if(cmd_status != STATUS_OK)
         return cmd_status;
       
-      // Slope and Intercept depend on frequency
-      float slope = get_log_amp_slope(curr_freq);
-      float intercept = get_log_amp_intercept(curr_freq);
+      // Slope and Intercept depend on frequency (unused depending on regression method)
+      float slope __attribute__((unused)) = get_log_amp_slope(curr_freq);
+      float intercept __attribute__((unused)) = get_log_amp_intercept(curr_freq);
 
       for(int i = 0; i < NUM_LOG_AMPS; i++) {
         int raw = analogRead(log_amp_pins[i]);

@@ -27,7 +27,7 @@ void sp8t_enablePort(const sp8t_port_t port) {
     digitalWrite(SP8T_PIN_LS, LOW);
 
     // Subtract one for bit masking
-    uint8_t port_mux = port - 1;
+    uint8_t port_mux = (uint8_t)port - 1;
 
     uint8_t v1_val = port_mux & SP8T_V1_MSK; 
     uint8_t v2_val = port_mux & SP8T_V2_MSK; 

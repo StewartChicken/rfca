@@ -1,15 +1,4 @@
 
-
-# TODO: ERROR HANDLING
-# TODO: Write documentation
-# TODO: Data buffer for retrieving large files
-#       - Add getFileSize(string) within SD driver (returns bytes) 
-#       - Partition into chunks and loop over chunks to send to CLI
-#       - Refactor SD_get_sweep_csv -> SD_get_sweep_csv_rows (returns subset of rows rather than the whole file)
-#       - Within CLI wait_for_response(): compare current chunk number to max_chunks to exit loop
-# TODO: Rewrite shutdown cmd functionality
-
-
 # For FW interaction
 import os
 import sys
@@ -855,8 +844,8 @@ def processData(cmd, data):
         sweep_data = data.get("sweep_data")
         file_bytes = data.get("file_bytes")
         num_rows = data.get("num_rows")
-
-        info(f"File has {file_bytes} bytes in {num_rows} rows")
+        num_chunks = data.get("num_chunks")
+        current_chunk = data.get("current_chunk")
         
         # Get directory of this script
         script_dir = Path(__file__).resolve().parent
@@ -868,11 +857,16 @@ def processData(cmd, data):
         # Construct file path
         file_path = sweep_dir / f"{sweep_name}.csv"
 
+        # Only print this once
+        if(current_chunk == 0):
+            info(f"File has {file_bytes} bytes in {num_rows} rows")
+
+        # "a" for append, "w" for write
         try:
-            with open(file_path, "w", encoding="utf-8") as f:
+            with open(file_path, "a", encoding="utf-8") as f:
                 f.write(sweep_data)
 
-            info(f"Saved sweep to: {file_path}")
+            info(f"Wrote data to: {file_path}")
 
         except Exception as e:
             err(f"Failed to save CSV: {e}")
@@ -881,8 +875,10 @@ def processData(cmd, data):
         global csv_path
         csv_path = file_path
 
-        on_tab_changed(0)  # Set initial tab (0-7)
-        GUI.show()
+        # If it's the final chunk sent by FW, display the chart
+        if(current_chunk == (num_chunks - 1)):
+            on_tab_changed(0)  # Set initial tab (0-7)
+            GUI.show()
 
     elif(cmd == "delete"): 
         sweep_name = data.get("sweep_name")
